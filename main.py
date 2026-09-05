@@ -81,14 +81,6 @@ if __name__ == "__main__":
         for block in row:
             for robot in block.robots:
                 robot._sense(world)
-    draw_map(world)
-    plt.show()
 
-    plt.pause(2)  # Pause for 1 second before updating the map
-
-    for row in world.blocks:
-        for block in row:
-            for robot in block.robots:
-                robot.forward()
     draw_map(world)
     plt.show()
