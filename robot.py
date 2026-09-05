@@ -37,6 +37,7 @@ class robot:
         self.orientation -= math.radians(90)
 
     def pickUp(self):
+        self.readyToPick = True
         pass
 
     def send(self, id, message):
@@ -69,6 +70,9 @@ class robot:
         if front_block is not None:
             if len(front_block.targets) > 0:
                 print(f"Robot {self.id}: Target detected in front of the robot.")
+                self.foundTarget = True
+            else:
+                self.foundTarget = False
             if len(front_block.robots) > 0:
                 for other_robot in front_block.robots:
                     print(f"Robot {self.id}: Robot {other_robot.id} detected in front of the robot.")
@@ -77,6 +81,9 @@ class robot:
         if current_block is not None:
             if len(current_block.targets) > 0:
                 print(f"Robot {self.id}: Target is on the robot.")
+                self.foundTarget = True
+            else:
+                self.foundTarget = False
             if len(current_block.robots) > 0:
                 for other_robot in current_block.robots:
                     if other_robot.id != self.id:
