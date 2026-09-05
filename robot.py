@@ -1,5 +1,8 @@
 import math
 
+from rules import can_move_forward
+
+
 class robot:
     def __init__(self, x, y, orientation):
         self.x = x
@@ -13,8 +16,17 @@ class robot:
 
     def forward(self):
         """Move the robot forward by a given distance in the direction of its orientation."""
-        self.x += 1 * math.cos(self.orientation)
-        self.y += 1 * math.sin(self.orientation)
+        delta_x = math.cos(self.orientation)
+        delta_y = math.sin(self.orientation)
+
+        next_x = self.x + delta_x
+        next_y = self.y + delta_y
+
+        if not can_move_forward(self, next_x, next_y):
+            return
+
+        self.x = next_x
+        self.y = next_y
 
     def turnLeft(self):
         """Turn the robot left by a given angle."""
@@ -69,4 +81,3 @@ class robot:
                 for other_robot in current_block.robots:
                     if other_robot.id != self.id:
                         print(f"Robot {self.id}: Robot {other_robot.id} detected in same space as the robot.")
-        
