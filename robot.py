@@ -6,8 +6,10 @@ class robot:
         self.y = y
         self.orientation = math.radians(float(orientation))
         self.id = None
+        self.world = None
         self.readyToPick = False
         self.foundTarget = False
+        self.inbox = []
 
     def forward(self):
         """Move the robot forward by a given distance in the direction of its orientation."""
@@ -24,6 +26,26 @@ class robot:
 
     def pickUp(self):
         pass
+
+    def send(self, id, message):
+        if self.world is None:
+            raise RuntimeError("Robot is not attached to a world.")
+
+        recipient = self.world.get_robot(id)
+        if recipient is None:
+            raise ValueError(f"Robot {id} does not exist in this world.")
+
+        payload = {"from": self.id, "message": message}
+        recipient.inbox.append(payload)
+        recipient._receive()
+
+    def _receive(self):
+        if not self.inbox:
+            return None
+
+        payload = self.inbox.pop(0)
+        print(f"Robot {self.id} received from Robot {payload['from']}: {payload['message']}")
+        return payload
 
     def _sense(self, world):
         """Return True if there is a target in front of the robot, False otherwise."""

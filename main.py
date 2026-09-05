@@ -9,6 +9,7 @@ from robot import robot
 from target import target
 
 
+
 def _draw_robot(ax, robot):
     """Draw one robot as a red, direction-facing isosceles triangle."""
     heading = robot.orientation
@@ -78,7 +79,16 @@ if __name__ == "__main__":
 
     for row in world.blocks:
         for block in row:
-            for current_robot in block.robots:
-                current_robot._sense(world)
+            for robot in block.robots:
+                robot._sense(world)
+    draw_map(world)
+    plt.show()
+
+    plt.pause(2)  # Pause for 1 second before updating the map
+
+    for row in world.blocks:
+        for block in row:
+            for robot in block.robots:
+                robot.forward()
     draw_map(world)
     plt.show()
