@@ -8,7 +8,8 @@ from map import map as Map
 from robot import robot
 from target import can_pick_up, target
 
-
+MAP_WIDTH = 10
+MAP_HEIGHT = 10
 
 def _draw_robot(ax, robot):
     """Draw one robot as a red, direction-facing isosceles triangle."""
@@ -125,7 +126,7 @@ def test_check_pickups():
 if __name__ == "__main__":
     test_check_pickups()
 
-    world = Map(10, 10)
+    world = Map(MAP_WIDTH, MAP_HEIGHT)
     # Add robots to `world` with `world.add_robot(robot(...))` before drawing.
     # world.add_robot(robot(0, 0, 270))
 
