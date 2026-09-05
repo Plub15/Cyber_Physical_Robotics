@@ -51,4 +51,7 @@ class map:
         selected_block = self._block_at(target.x, target.y)
         selected_block.targets.append(target)
 
-    
+    def remove_target(self, target):
+        """Remove a target from the block containing it."""
+        selected_block = self._block_at(target.x, target.y)
+        selected_block.targets.remove(target)

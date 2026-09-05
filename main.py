@@ -72,7 +72,7 @@ def draw_map(world):
 
 
 def check_pickups(world):
-    """Check each pickup location once, then clear the iteration's attempts."""
+    """Resolve each pickup location once, removing successfully picked targets."""
     checked_blocks = set()
     results = []
 
@@ -88,7 +88,11 @@ def check_pickups(world):
             continue
 
         checked_blocks.add(block_position)
-        results.append((block_position, can_pick_up(robot)))
+        picked_up = can_pick_up(robot)
+        results.append((block_position, picked_up))
+
+        if picked_up:
+            world.remove_target(current_block.targets[0])
 
     # Prepare for the next iteration.
     for robot in world.robots.values():
@@ -119,6 +123,8 @@ def test_check_pickups():
 
         results = check_pickups(world)
         assert results == [((1, 1), expected)]
+        remaining_targets = len(world.get_block(1, 1).targets)
+        assert remaining_targets == (0 if expected else int(has_target))
         assert all(not bot.readyToPick for bot in world.robots.values())
         print(f"check_pickups test ({name}): PASS")
 
