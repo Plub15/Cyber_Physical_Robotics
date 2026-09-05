@@ -16,6 +16,7 @@ class map:
         self.width = width
         self.height = height
         self.next_robot_id = 0
+        self.robots = {}
         self.blocks = [
             [block(x, y) for x in range(width)]
             for y in range(height)
@@ -39,7 +40,12 @@ class map:
         selected_block = self._block_at(robot.x, robot.y)
         robot.id = self.next_robot_id
         self.next_robot_id += 1
+        robot.world = self
         selected_block.robots.append(robot)
+        self.robots[robot.id] = robot
+
+    def get_robot(self, robot_id):
+        return self.robots.get(robot_id)
 
     def add_target(self, target):
         selected_block = self._block_at(target.x, target.y)
