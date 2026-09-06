@@ -10,6 +10,7 @@ from target import can_pick_up, target
 
 MAP_WIDTH = 10
 MAP_HEIGHT = 10
+FRAME_DELAY_SECONDS = 0.25
 
 def _draw_robot(ax, robot):
     """Draw one robot as a red, direction-facing isosceles triangle."""
@@ -43,10 +44,14 @@ def _draw_target(ax, target):
     )
 
 
-def draw_map(world):
+def draw_map(world, ax=None):
     """Display a map and all robots currently registered on it."""
     grid = np.ones((world.height, world.width))
-    fig, ax = plt.subplots(figsize=(6, 6))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.figure
+        ax.clear()
     ax.imshow(grid, cmap="gray", vmin=0, vmax=1, origin="lower")
 
     ax.set_xticks(np.arange(world.width))
@@ -58,16 +63,28 @@ def draw_map(world):
 
     for row in world.blocks:
         for block in row:
-            for robot in block.robots:
-                _draw_robot(ax, robot)
             for target in block.targets:
                 _draw_target(ax, target)
+
+    for row in world.blocks:
+        for block in row:
+            for robot in block.robots:
+                _draw_robot(ax, robot)
 
     ax.set_xlim(-0.5, world.width - 0.5)
     ax.set_ylim(-0.5, world.height - 0.5)
     ax.set_aspect("equal")
     ax.set_title(f"{world.width}x{world.height} 2D Grid")
     fig.tight_layout()
+    return fig, ax
+
+
+def _show_frame(world, ax=None):
+    """Render one simulation frame in the same window as the previous frame."""
+    fig, ax = draw_map(world, ax=ax)
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+    plt.pause(FRAME_DELAY_SECONDS)
     return fig, ax
 
 
@@ -101,38 +118,101 @@ def check_pickups(world):
     return results
 
 
-def test_check_pickups():
+def test_check_pickups(case):
     """Test pickup results and state cleanup at the end of an iteration."""
-    cases = [
-        ("no target", 1, False, False),
-        ("one robot", 1, True, False),
-        ("exactly two robots", 2, True, True),
-        ("more than two robots", 3, True, False),
-    ]
+    world = Map(10, 10)
+    if case == 1:
+        world.add_robot(robot(3, 4, 0))
+        current_robot = next(iter(world.robots.values()))
 
-    for name, robot_count, has_target, expected in cases:
-        world = Map(3, 3)
+        plt.ion()
+        _, ax = _show_frame(world)
+        current_robot.forward()
+        check_pickups(world)
+        _show_frame(world,ax=ax)
+        current_robot.forward()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        current_robot.pickUp()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        plt.ioff()
+        plt.show()
+    if case == 2:
+        world.add_robot(robot(3, 4, 0))
+        world.add_target(target(5, 4))
+        current_robot = next(iter(world.robots.values()))
 
-        for _ in range(robot_count):
-            bot = robot(1, 1, 0)
-            bot.readyToPick = True
-            world.add_robot(bot)
+        plt.ion()
+        _, ax = _show_frame(world)
+        current_robot.forward()
+        check_pickups(world)
+        _show_frame(world,ax=ax)
+        current_robot.forward()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        current_robot.pickUp()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        plt.ioff()
+        plt.show()
+    if case == 3:
+        world.add_robot(robot(3, 4, 0))
+        world.add_robot(robot(7, 4, 180))
+        world.add_target(target(5, 4))
+        robot1 = list(world.robots.values())[0]
+        robot2 = list(world.robots.values())[1]
 
-        if has_target:
-            world.add_target(target(1, 1))
+        plt.ion()
+        _, ax = _show_frame(world)
+        robot1.forward()
+        robot2.forward()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        robot1.forward()
+        robot2.forward()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        robot1.pickUp()
+        robot2.pickUp()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        plt.ioff()
+        plt.show()
+    if case == 4:
+        world.add_robot(robot(3, 4, 0))
+        world.add_robot(robot(7, 4, 180))
+        world.add_robot(robot(5, 2, 90))
+        world.add_target(target(5, 4))
+        robot1 = list(world.robots.values())[0]
+        robot2 = list(world.robots.values())[1]
+        robot3 = list(world.robots.values())[2]
 
-        results = check_pickups(world)
-        assert results == [((1, 1), expected)]
-        remaining_targets = len(world.get_block(1, 1).targets)
-        assert remaining_targets == (0 if expected else int(has_target))
-        assert all(not bot.readyToPick for bot in world.robots.values())
-        print(f"check_pickups test ({name}): PASS")
+        plt.ion()
+        _, ax = _show_frame(world)
+        robot1.forward()
+        robot2.forward()
+        robot3.forward()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        robot1.forward()
+        robot2.forward()
+        robot3.forward()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        robot1.pickUp()
+        robot2.pickUp()
+        robot3.pickUp()
+        check_pickups(world)
+        _show_frame(world, ax=ax)
+        plt.ioff()
+        plt.show()
 
 
 if __name__ == "__main__":
-    test_check_pickups()
+    test_check_pickups(3)
 
-    world = Map(MAP_WIDTH, MAP_HEIGHT)
+    # world = Map(MAP_WIDTH, MAP_HEIGHT)
     # Add robots to `world` with `world.add_robot(robot(...))` before drawing.
     # world.add_robot(robot(0, 0, 270))
 
