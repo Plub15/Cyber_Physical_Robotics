@@ -44,6 +44,16 @@ class map:
         selected_block.robots.append(robot)
         self.robots[robot.id] = robot
 
+    def move_robot(self, current_robot, x, y):
+        current_block = self._block_at(current_robot.x, current_robot.y)
+        destination_block = self._block_at(x, y)
+
+        current_block.robots.remove(current_robot)
+        destination_block.robots.append(current_robot)
+
+        current_robot.x = x
+        current_robot.y = y
+
     def get_robot(self, robot_id):
         return self.robots.get(robot_id)
 

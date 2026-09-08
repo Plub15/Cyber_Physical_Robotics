@@ -24,9 +24,8 @@ class robot:
 
         if not can_move_forward(self, next_x, next_y):
             return
-
-        self.x = next_x
-        self.y = next_y
+        else:
+            self.world.move_robot(self, next_x, next_y)
 
     def turnLeft(self):
         """Turn the robot left by a given angle."""
