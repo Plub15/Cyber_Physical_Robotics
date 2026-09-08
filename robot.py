@@ -11,7 +11,8 @@ class robot:
         self.id = None
         self.world = None
         self.readyToPick = False
-        self.foundTarget = False
+        self.foundTargetAhead = False
+        self.foundTargetCurrent = False
         self.inbox = []
 
     def forward(self):
@@ -60,8 +61,7 @@ class robot:
         return payload
 
     def _sense(self, world):
-        """Return True if there is a target in front of the robot, False otherwise."""
-        # Calculate the position in front of the robot based on its orientation
+        # Sense the position in front of the robot based on its orientation
         front_x = self.x + math.cos(self.orientation)
         front_y = self.y + math.sin(self.orientation)
 
@@ -69,20 +69,21 @@ class robot:
         if front_block is not None:
             if len(front_block.targets) > 0:
                 print(f"Robot {self.id}: Target detected in front of the robot.")
-                self.foundTarget = True
+                self.foundTargetAhead = True
             else:
-                self.foundTarget = False
+                self.foundTargetAhead = False
             if len(front_block.robots) > 0:
                 for other_robot in front_block.robots:
                     print(f"Robot {self.id}: Robot {other_robot.id} detected in front of the robot.")
 
+        # Sense the position of the robot
         current_block = world.get_block(self.x, self.y)
         if current_block is not None:
             if len(current_block.targets) > 0:
                 print(f"Robot {self.id}: Target is on the robot.")
-                self.foundTarget = True
+                self.foundTargetCurrent = True
             else:
-                self.foundTarget = False
+                self.foundTargetCurrent = False
             if len(current_block.robots) > 0:
                 for other_robot in current_block.robots:
                     if other_robot.id != self.id:
