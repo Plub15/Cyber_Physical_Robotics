@@ -126,6 +126,13 @@ def add_random_robots(world, count):
         orientation = np.random.choice(orientations)
         world.add_robot(robot(x, y, orientation))
 
+def add_random_targets(world, count):
+    """Add a number of targets at random positions."""
+    for _ in range(count):
+        x = np.random.randint(0, world.width)
+        y = np.random.randint(0, world.height)
+        world.add_target(target(x, y))
+
 def test_check_pickups(case):
     """Test pickup results and state cleanup at the end of an iteration."""
     world = Map(10, 10)
