@@ -117,6 +117,14 @@ def check_pickups(world):
 
     return results
 
+def add_random_robots(world, count):
+    """Add a number of robots at random positions and orientations."""
+    for _ in range(count):
+        x = np.random.randint(0, world.width)
+        y = np.random.randint(0, world.height)
+        orientations = [0, 90, 180, 270]
+        orientation = np.random.choice(orientations)
+        world.add_robot(robot(x, y, orientation))
 
 def test_check_pickups(case):
     """Test pickup results and state cleanup at the end of an iteration."""
