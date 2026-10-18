@@ -6,8 +6,8 @@ from map import map as Map
 from robot import robot
 from target import can_pick_up, target
 
-MAP_WIDTH = 5
-MAP_HEIGHT = 5
+MAP_WIDTH = 10
+MAP_HEIGHT = 10
 FRAME_DELAY_SECONDS = 0.05
 
 ITERATIONS = 200
@@ -286,30 +286,56 @@ if __name__ == "__main__":
 
         for i in range(ITERATIONS):
             for robot in world.robots.values():
-                robot.receive()
+                payload = robot.receive()
+                if robot.state == "searching":
+                    if payload is not None and payload["message"] == "Target found":
+                        if robot.state != "moving_to_target":
+                            robot.goal_x, robot.goal_y = payload["position"]
+                            robot.state = "moving_to_target"
+                if robot.state == "found_target":
+                    if payload is not None and payload["message"] == "Moving to target" and payload["goal"] == (robot.x, robot.y):
+                        robot.state = "waiting_for_pickup"
+
             for robot in world.robots.values():
                 robot.sense(world)
                 # Robot Behavior decision-making
-                if robot.foundTargetAhead:
-                    robot.forward()
-                elif robot.foundTargetCurrent:
-                    continue  # Robot is already on a target, no movement needed
-                else:
-                    move_direction = np.random.choice(
-                        ["forward", "left", "right"],
-                        p=[0.5, 0.25, 0.25],
-                    )
-                    if move_direction == "forward":
+                if robot.state == "searching":
+                    if robot.foundTargetAhead:
                         robot.forward()
-                    elif move_direction == "left":
-                        robot.turnLeft()
-                    elif move_direction == "right":
-                        robot.turnRight()
+                    elif robot.foundTargetCurrent:
+                        robot.state = "found_target"
+                    else:
+                        move_direction = np.random.choice(
+                            ["forward", "left", "right"],
+                            p=[0.6, 0.2, 0.2],
+                        )
+                        if move_direction == "forward":
+                            robot.forward()
+                        elif move_direction == "left":
+                            robot.turnLeft()
+                        elif move_direction == "right":
+                            robot.turnRight()
+                elif robot.state == 'moving_to_target':
+                    if (robot.x, robot.y) == (robot.goal_x, robot.goal_y):
+                        robot.state = "found_target"
+                    else:
+                        # Move towards the goal position
+                        if robot.x < robot.goal_x:
+                            robot.orientation = 0  # Facing right
+                        elif robot.x > robot.goal_x:
+                            robot.orientation = 2  # Facing left
+                        elif robot.y < robot.goal_y:
+                            robot.orientation = 1  # Facing up
+                        elif robot.y > robot.goal_y:
+                            robot.orientation = 3  # Facing down
+                        robot.forward()
 
             check_pickups(world) # Check for pickups after all robots have moved
             for robot in world.robots.values():
-                if robot.foundTargetCurrent:
+                if robot.state == "found_target":
                     robot.send("Target found")
+                if robot.state == "moving_to_target":
+                    robot.send("Moving to target", goal_x=robot.goal_x, goal_y=robot.goal_y)
 
 
                 # Update the map view after each robot's action

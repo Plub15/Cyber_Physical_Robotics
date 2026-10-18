@@ -21,6 +21,7 @@ class robot:
         self.message_value = 0
         self.goal_x = None
         self.goal_y = None
+        self.state = "searching"  # Initial state of the robot
 
     def forward(self):
         """Move the robot forward by a given distance in the direction of its orientation."""
@@ -46,20 +47,23 @@ class robot:
         self.readyToPick = True
         pass
 
-    def send(self, message):
+    def send(self, message, goal_x=None, goal_y=None):
 
         payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y)}
+        if goal_x is not None and goal_y is not None:
+            payload["goal"] = (goal_x, goal_y)
         self.message_value += 1
         for recipient in self.world.robots.values():
             if recipient.id != self.id:
                 recipient.inbox.append(payload)
+        print(f"Robot {self.id} sent message: {message} with value {self.message_value} at position ({self.x}, {self.y})")
 
     def receive(self):
         if not self.inbox:
             return None
 
-        payload = self.inbox.pop(0)
-        print(f"Robot {self.id} received from Robot {payload['from']}: {payload['message']} at position {payload['position']}")
+        payload = self.inbox.pop(-1)
+        # print(f"Robot {self.id} received from Robot {payload['from']}: {payload['message']} at position {payload['position']}")
         self.message_value = max(self.message_value, payload["message_value"] + 1)
         return payload
 
