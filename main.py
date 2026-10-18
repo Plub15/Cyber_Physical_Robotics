@@ -274,39 +274,45 @@ def test_check_pickups(case):
 
 
 if __name__ == "__main__":
+    try:
+        world = Map(MAP_WIDTH, MAP_HEIGHT)
 
-    world = Map(MAP_WIDTH, MAP_HEIGHT)
+        plt.ion()
+        _, ax = _show_frame(world)
+        # Add robots to `world`
+        add_random_robots(world, RANDOM_ROBOTS)
+        # Add targets to `world`
+        add_random_targets(world, RANDOM_TARGETS)
 
-    plt.ion()
-    _, ax = _show_frame(world)
-    # Add robots to `world`
-    add_random_robots(world, RANDOM_ROBOTS)
-    # Add targets to `world`
-    add_random_targets(world, RANDOM_TARGETS)
-
-    for i in range(ITERATIONS):
-        for robot in world.robots.values():
-            robot.receive()
-        for robot in world.robots.values():
-            robot.sense(world)
-            # Robot Behavior decision-making
-            if robot.foundTargetAhead:
-                robot.forward()
-            elif robot.foundTargetCurrent:
-                robot.send("Found target")
-            else:
-                move_direction = np.random.choice(
-                    ["forward", "left", "right"],
-                    p=[0.5, 0.25, 0.25],
-                )
-                if move_direction == "forward":
+        for i in range(ITERATIONS):
+            for robot in world.robots.values():
+                robot.receive()
+            for robot in world.robots.values():
+                robot.sense(world)
+                # Robot Behavior decision-making
+                if robot.foundTargetAhead:
                     robot.forward()
-                elif move_direction == "left":
-                    robot.turnLeft()
-                elif move_direction == "right":
-                    robot.turnRight()
-            
+                elif robot.foundTargetCurrent:
+                    continue  # Robot is already on a target, no movement needed
+                else:
+                    move_direction = np.random.choice(
+                        ["forward", "left", "right"],
+                        p=[0.5, 0.25, 0.25],
+                    )
+                    if move_direction == "forward":
+                        robot.forward()
+                    elif move_direction == "left":
+                        robot.turnLeft()
+                    elif move_direction == "right":
+                        robot.turnRight()
 
-            # Update the map view after each robot's action
-            check_pickups(world)
-            _show_frame(world,ax=ax)
+            check_pickups(world) # Check for pickups after all robots have moved
+            for robot in world.robots.values():
+                if robot.foundTargetCurrent:
+                    robot.send("Target found")
+
+
+                # Update the map view after each robot's action
+                _show_frame(world,ax=ax)
+    except KeyboardInterrupt:
+        print("Simulation interrupted by user.")
