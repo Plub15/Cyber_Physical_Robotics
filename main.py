@@ -8,9 +8,13 @@ from map import map as Map
 from robot import robot
 from target import can_pick_up, target
 
-MAP_WIDTH = 10
-MAP_HEIGHT = 10
-FRAME_DELAY_SECONDS = 0.25
+MAP_WIDTH = 5
+MAP_HEIGHT = 5
+FRAME_DELAY_SECONDS = 0.05
+
+ITERATIONS = 200
+RANDOM_ROBOTS = 2
+RANDOM_TARGETS = 1
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
@@ -117,11 +121,12 @@ def draw_map(world, ax=None):
     else:
         fig = ax.figure
     view = getattr(ax, "_map_view", None)
-    if view is None or view.shape != (world.width, world.height):
-        if view is not None:
+    if not isinstance(view, MapView) or view.shape != (world.width, world.height):
+        if isinstance(view, MapView):
             fig.canvas.mpl_disconnect(view.draw_callback)
         ax.clear()
-        view = ax._map_view = MapView(world, ax)
+        view = MapView(world, ax)
+        setattr(ax, "_map_view", view)
     view.update(world)
     view.render()
     return fig, ax
@@ -272,17 +277,39 @@ def test_check_pickups(case):
 
 
 if __name__ == "__main__":
-    test_check_pickups(3)
 
-    # world = Map(MAP_WIDTH, MAP_HEIGHT)
-    # Add robots to `world` with `world.add_robot(robot(...))` before drawing.
-    # world.add_robot(robot(0, 0, 270))
+    world = Map(MAP_WIDTH, MAP_HEIGHT)
 
-    # for row in world.blocks:
-    #     for block in row:
-    #         for current_robot in block.robots:
-    #             current_robot.forward()
-    #             current_robot._sense(world)
+    plt.ion()
+    _, ax = _show_frame(world)
+    # Add robots to `world`
+    add_random_robots(world, RANDOM_ROBOTS)
+    # Add targets to `world`
+    add_random_targets(world, RANDOM_TARGETS)
 
-    # draw_map(world)
-    # plt.show()
+    for i in range(ITERATIONS):
+        for robot in world.robots.values():
+            robot.receive()
+        for robot in world.robots.values():
+            robot.sense(world)
+            # Robot Behavior decision-making
+            if robot.foundTargetAhead:
+                robot.forward()
+            elif robot.foundTargetCurrent:
+                robot.send("Found target")
+            else:
+                move_direction = np.random.choice(
+                    ["forward", "left", "right"],
+                    p=[0.5, 0.25, 0.25],
+                )
+                if move_direction == "forward":
+                    robot.forward()
+                elif move_direction == "left":
+                    robot.turnLeft()
+                elif move_direction == "right":
+                    robot.turnRight()
+            
+
+            # Update the map view after each robot's action
+            check_pickups(world)
+            _show_frame(world,ax=ax)
