@@ -1,5 +1,3 @@
-import math
-
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Polygon, Rectangle
@@ -18,8 +16,7 @@ RANDOM_TARGETS = 1
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
-    heading = robot.orientation
-    direction = np.array([math.cos(heading), math.sin(heading)])
+    direction = np.array(robot.DIRECTIONS[robot.orientation], dtype=float)
     perpendicular = np.array([-direction[1], direction[0]])
     centre = np.array([robot.x, robot.y])
 

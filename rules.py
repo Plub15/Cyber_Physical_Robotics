@@ -11,7 +11,7 @@ def can_move_forward(robot, next_x, next_y):
     if robot.world is None:
         return True
 
-    if robot.world.get_block(next_x, next_y) is not None:
+    if 0 <= next_x < robot.world.width and 0 <= next_y < robot.world.height:
         return True
 
     logger.warning(
