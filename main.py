@@ -316,6 +316,7 @@ if __name__ == "__main__":
 
         for i in range(ITERATIONS):
             for robot in world.robots.values():
+                # Robot communication handling (receiving messages)
                 payload = robot.receive()
                 if robot.state == "searching":
                     if payload is not None and payload["message"] == "Target found":
@@ -328,7 +329,7 @@ if __name__ == "__main__":
 
             for robot in world.robots.values():
                 robot.sense(world)
-                # Robot Behavior decision-making
+                # Robot action decision-making
                 if robot.state == "searching":
                     if robot.foundTargetAhead:
                         robot.forward()
@@ -353,6 +354,7 @@ if __name__ == "__main__":
 
             check_pickups(world) # Check for pickups after all robots have moved
             for robot in world.robots.values():
+                # Robot communication handling (sending messages)
                 if robot.state == "found_target":
                     robot.send("Target found")
                 if robot.state == "moving_to_target":
