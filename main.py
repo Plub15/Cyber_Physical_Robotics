@@ -9,9 +9,9 @@ from robot import robot
 from robot_logging import configure_robot_logs, close_robot_logs, open_log_viewers
 from target import can_pick_up, target
 
-MAP_WIDTH = 5
-MAP_HEIGHT = 5
-FRAME_DELAY_SECONDS = 0.25
+MAP_WIDTH = 10
+MAP_HEIGHT = 10
+FRAME_DELAY_SECONDS = 0.05
 
 ITERATIONS = 200
 RANDOM_ROBOTS = 3
@@ -338,7 +338,12 @@ if __name__ == "__main__":
                     if payload is not None and payload["message"] == "Moving to target" and payload["goal"] == (robot.x, robot.y):
                         robot.state = "waiting_for_pickup"
                 if robot.state == "moving_to_target":
-                    if payload is not None and payload["message"] == "Moving to target" and payload["message_value"] > robot.message_value:
+                    if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") < robot.distance_to_goal_value:
+                        robot.state = "searching"
+                    if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") == robot.distance_to_goal_value:
+                        if payload["from"] > robot.id:
+                            robot.state = "searching"
+                    if payload is not None and payload["message"] == "Target reached" and payload.get("goal") == (robot.goal_x, robot.goal_y):
                         robot.state = "searching"
 
             for robot in world.robots.values():
@@ -362,7 +367,7 @@ if __name__ == "__main__":
                             robot.turnRight()
                 elif robot.state == 'moving_to_target':
                     if (robot.x, robot.y) == (robot.goal_x, robot.goal_y):
-                        robot.state = "waiting_for_pickup"
+                        robot.state = "target_reached"
                     else:
                         move_towards_goal(robot)
 
@@ -373,6 +378,9 @@ if __name__ == "__main__":
                     robot.send("Target found")
                 if robot.state == "moving_to_target":
                     robot.send("Moving to target", goal_x=robot.goal_x, goal_y=robot.goal_y)
+                if robot.state == "target_reached":
+                    robot.send("Target reached", goal_x=robot.goal_x, goal_y=robot.goal_y)
+                    robot.state = "waiting_for_pickup"
 
 
                 # Update the map view after each robot's action

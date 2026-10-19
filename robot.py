@@ -1,6 +1,7 @@
 from rules import can_move_forward
 
 
+
 class robot:
     # East, north, west, south.  The index is the robot's discrete orientation.
     DIRECTIONS = ((1, 0), (0, 1), (-1, 0), (0, -1))
@@ -23,6 +24,7 @@ class robot:
         self.goal_x = None
         self.goal_y = None
         self.state = "searching"  # Initial state of the robot
+        self.distance_to_goal_value = float("inf")  # Initialize distance to goal as infinity
 
     def forward(self):
         """Move the robot forward by a given distance in the direction of its orientation."""
@@ -53,6 +55,7 @@ class robot:
         payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y)}
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
+            payload["distance_to_goal"] = self.distance_to_goal_value
         for recipient in self.world.robots.values():
             if recipient.id != self.id:
                 recipient.inbox.append(payload)
@@ -103,3 +106,10 @@ class robot:
                     if other_robot.id != self.id:
                         # print(f"Robot {self.id}: Robot {other_robot.id} detected in same space as the robot.")
                         continue
+
+        # Calculate the distance to the goal if it exists
+        self.distance_to_goal_value = self.distance_to_goal()
+    def distance_to_goal(self):
+        if self.goal_x is None or self.goal_y is None:
+            return None
+        return  abs(self.x - self.goal_x) + abs(self.y - self.goal_y)
