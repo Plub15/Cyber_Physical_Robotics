@@ -337,9 +337,7 @@ if __name__ == "__main__":
                             robot.goal_x, robot.goal_y = payload["position"]
                             robot.state = "moving_to_target"
                     if robot.state == "found_target":
-                        if robot.patience_counter <= 0:
-                            robot.state = "searching"
-                        elif payload is not None and payload["message"] in ["Moving to target","Target reached"] and payload["goal"] == (robot.x, robot.y):
+                        if payload is not None and payload["message"] in ["Moving to target","Target reached"] and payload["goal"] == (robot.x, robot.y):
                             robot.state = "waiting_for_help"
                         elif payload is not None and payload["message"] == "found_target" and payload.get("goal") == (robot.x, robot.y) and payload["from"] < robot.id:
                             robot.state = "searching"
