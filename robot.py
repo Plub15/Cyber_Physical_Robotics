@@ -28,6 +28,7 @@ class robot:
         self.goal_y = None
         self.state = "searching"  # Initial state of the robot
         self.distance_to_goal_value = float("inf")  # Initialize distance to goal as infinity
+        self.patience_counter = 10  # Counter to track how long the robot has been waiting for help
 
     def forward(self):
         """Move the robot forward by a given distance in the direction of its orientation."""

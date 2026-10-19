@@ -15,7 +15,7 @@ FRAME_DELAY_SECONDS = 0.01
 
 ITERATIONS = 2000
 RANDOM_ROBOTS = 4
-RANDOM_TARGETS = 3
+RANDOM_TARGETS = 50
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
@@ -337,9 +337,11 @@ if __name__ == "__main__":
                             robot.goal_x, robot.goal_y = payload["position"]
                             robot.state = "moving_to_target"
                     if robot.state == "found_target":
-                        if payload is not None and payload["message"] == "Moving to target" and payload["goal"] == (robot.x, robot.y):
+                        if robot.patience_counter <= 0:
+                            robot.state = "searching"
+                        elif payload is not None and payload["message"] in ["Moving to target","Target reached"] and payload["goal"] == (robot.x, robot.y):
                             robot.state = "waiting_for_help"
-                        if payload is not None and payload["message"] == "found_target" and payload.get("goal") == (robot.x, robot.y) and payload["from"] < robot.id:
+                        elif payload is not None and payload["message"] == "found_target" and payload.get("goal") == (robot.x, robot.y) and payload["from"] < robot.id:
                             robot.state = "searching"
                     if robot.state == "moving_to_target":
                         if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") < robot.distance_to_goal_value and payload["goal"] == (robot.goal_x, robot.goal_y):
@@ -352,6 +354,8 @@ if __name__ == "__main__":
                     if robot.state == "waiting_for_help":
                         if payload is not None and payload["message"] == "Target reached" and payload.get("goal") == (robot.x, robot.y):
                             robot.state = "waiting_for_pickup"
+                if robot.state == "found_target":
+                    robot.patience_counter -= 1
 
             for robot in world.robots.values():
                 robot.sense(world)
@@ -374,6 +378,7 @@ if __name__ == "__main__":
                             robot.turnRight()
                     elif robot.foundTargetCurrent and robot.NumfoundRobotCurrent == 1:
                         robot.state = "found_target"
+                        robot.patience_counter = 10
                     else:
                         move_direction = np.random.choice(
                             ["forward", "left", "right"],
