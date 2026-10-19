@@ -354,6 +354,8 @@ if __name__ == "__main__":
                             robot.state = "waiting_for_pickup"
                 if robot.state == "found_target":
                     robot.patience_counter -= 1
+                if robot.patience_counter <= 0:
+                    robot.state = "searching"
 
             for robot in world.robots.values():
                 robot.sense(world)
