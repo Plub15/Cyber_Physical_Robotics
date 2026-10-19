@@ -13,9 +13,9 @@ MAP_WIDTH = 10
 MAP_HEIGHT = 10
 FRAME_DELAY_SECONDS = 0.05
 
-ITERATIONS = 200
-RANDOM_ROBOTS = 3
-RANDOM_TARGETS = 1
+ITERATIONS = 500
+RANDOM_ROBOTS = 4
+RANDOM_TARGETS = 3
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
@@ -326,30 +326,40 @@ if __name__ == "__main__":
         add_random_targets(world, RANDOM_TARGETS)
 
         for i in range(ITERATIONS):
+            for current_robot in world.robots.values():
+                current_robot.iteration = i + 1
             for robot in world.robots.values():
                 # Robot communication handling (receiving messages)
-                payload = robot.receive()
-                if robot.state == "searching":
-                    if payload is not None and payload["message"] == "Target found":
-                        if robot.state != "moving_to_target":
-                            robot.goal_x, robot.goal_y = payload["position"]
-                            robot.state = "moving_to_target"
-                if robot.state == "found_target":
-                    if payload is not None and payload["message"] == "Moving to target" and payload["goal"] == (robot.x, robot.y):
-                        robot.state = "waiting_for_pickup"
-                if robot.state == "moving_to_target":
-                    if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") < robot.distance_to_goal_value:
-                        robot.state = "searching"
-                    if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") == robot.distance_to_goal_value:
-                        if payload["from"] > robot.id:
+                for _ in range(len(robot.inbox)):
+                    payload = robot.receive()
+                    if robot.state == "searching":
+                        if payload is not None and payload["message"] == "Target found":
+                            if robot.state != "moving_to_target":
+                                robot.goal_x, robot.goal_y = payload["position"]
+                                robot.state = "moving_to_target"
+                    if robot.state == "found_target":
+                        if payload is not None and payload["message"] == "Moving to target" and payload["goal"] == (robot.x, robot.y):
+                            robot.state = "waiting_for_help"
+                    if robot.state == "moving_to_target":
+                        if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") < robot.distance_to_goal_value:
                             robot.state = "searching"
-                    if payload is not None and payload["message"] == "Target reached" and payload.get("goal") == (robot.goal_x, robot.goal_y):
-                        robot.state = "searching"
+                        if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") == robot.distance_to_goal_value:
+                            if payload["from"] < robot.id:
+                                robot.state = "searching"
+                        if payload is not None and payload["message"] == "Target reached" and payload.get("goal") == (robot.goal_x, robot.goal_y):
+                            robot.state = "searching"
+                    if robot.state == "waiting_for_help":
+                        if payload is not None and payload["message"] == "Target reached" and payload.get("goal") == (robot.x, robot.y):
+                            robot.state = "waiting_for_pickup"
 
             for robot in world.robots.values():
                 robot.sense(world)
                 # Robot action decision-making
-                if robot.state == "searching":
+                if robot.state == "waiting_for_pickup":
+                    robot.pickUp()
+                    robot.state = "searching"
+
+                elif robot.state == "searching":
                     if robot.foundTargetAhead:
                         robot.forward()
                     elif robot.foundTargetCurrent:
@@ -384,6 +394,10 @@ if __name__ == "__main__":
 
 
                 # Update the map view after each robot's action
+                target_count = sum(
+                    len(block.targets) for row in world.blocks for block in row
+                )
+                add_random_targets(world, RANDOM_TARGETS - target_count)  # Add new targets if needed
                 _show_frame(world,ax=ax)
     except KeyboardInterrupt:
         print("Simulation interrupted by user.")

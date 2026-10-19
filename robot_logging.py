@@ -8,6 +8,18 @@ import shutil
 import subprocess
 
 
+class RobotIterationFilter(logging.Filter):
+    """Attach the robot's current simulation iteration to every log entry."""
+
+    def __init__(self, robot):
+        super().__init__()
+        self.robot = robot
+
+    def filter(self, record):
+        record.iteration = self.robot.iteration
+        return True
+
+
 def configure_robot_logs(robots, log_root=None):
     root = Path(log_root) if log_root is not None else Path(__file__).parent / "logs"
     run_directory = root / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -16,8 +28,9 @@ def configure_robot_logs(robots, log_root=None):
         logger = logging.Logger(f"Robot {item.id}", level=logging.DEBUG)
         handler = logging.FileHandler(run_directory / f"robot_{item.id}.log", encoding="utf-8")
         handler.setFormatter(logging.Formatter(
-            "%(asctime)s.%(msecs)03d %(name)s %(message)s", datefmt="%H:%M:%S"
+            "Iteration %(iteration)d %(name)s %(message)s"
         ))
+        handler.addFilter(RobotIterationFilter(item))
         logger.addHandler(handler)
         item.logger = logger
         logger.info("START position=%s state=%s", (item.x, item.y), item.state)

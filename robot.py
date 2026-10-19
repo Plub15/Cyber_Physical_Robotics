@@ -20,6 +20,7 @@ class robot:
         self.foundTargetCurrent = False
         self.inbox = []
         self.logger = None
+        self.iteration = 0  # Initialization; simulation iterations start at 1.
         self.message_value = 0
         self.goal_x = None
         self.goal_y = None
@@ -68,7 +69,7 @@ class robot:
         if not self.inbox:
             return None
 
-        payload = self.inbox.pop(-1)
+        payload = self.inbox.pop(0)
         if self.logger is not None:
             self.logger.debug("RECEIVE from=%s value=%s message=%r position=%s goal=%s state=%s",
                               payload["from"], payload["message_value"], payload["message"],
@@ -111,5 +112,5 @@ class robot:
         self.distance_to_goal_value = self.distance_to_goal()
     def distance_to_goal(self):
         if self.goal_x is None or self.goal_y is None:
-            return None
+            return float("inf")  # Return infinity if the goal is not set
         return  abs(self.x - self.goal_x) + abs(self.y - self.goal_y)
