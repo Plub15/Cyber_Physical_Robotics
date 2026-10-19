@@ -11,9 +11,9 @@ from target import can_pick_up, target
 
 MAP_WIDTH = 10
 MAP_HEIGHT = 10
-FRAME_DELAY_SECONDS = 0.05
+FRAME_DELAY_SECONDS = 0.025
 
-ITERATIONS = 500
+ITERATIONS = 1000
 RANDOM_ROBOTS = 4
 RANDOM_TARGETS = 3
 
@@ -360,8 +360,17 @@ if __name__ == "__main__":
                     robot.state = "searching"
 
                 elif robot.state == "searching":
-                    if robot.foundTargetAhead:
+                    if robot.foundTargetAhead and not robot.foundRobotAhead:
                         robot.forward()
+                    if robot.foundTargetAhead and robot.foundRobotAhead:
+                        move_direction = np.random.choice(
+                            ["left", "right"],
+                            p=[0.5, 0.5],
+                        )
+                        if move_direction == "left":
+                            robot.turnLeft()
+                        elif move_direction == "right":
+                            robot.turnRight()
                     elif robot.foundTargetCurrent:
                         robot.state = "found_target"
                     else:

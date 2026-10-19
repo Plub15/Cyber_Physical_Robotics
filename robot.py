@@ -18,6 +18,7 @@ class robot:
         self.readyToPick = False
         self.foundTargetAhead = False
         self.foundTargetCurrent = False
+        self.foundRobotAhead = False
         self.inbox = []
         self.logger = None
         self.iteration = 0  # Initialization; simulation iterations start at 1.
@@ -90,9 +91,12 @@ class robot:
                 # print(f"Robot {self.id}: Target detected in front of the robot.")
                 self.foundTargetAhead = True
             if len(front_block.robots) > 0:
+                self.foundRobotAhead = True
                 for other_robot in front_block.robots:
                     # print(f"Robot {self.id}: Robot {other_robot.id} detected in front of the robot.")
                     continue
+            else:
+                self.foundRobotAhead = False
 
         # Sense the position of the robot
         current_block = world.get_block(self.x, self.y)
