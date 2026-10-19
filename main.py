@@ -334,7 +334,7 @@ if __name__ == "__main__":
                     payload = robot.receive()
                     if robot.state == "searching":
                         if payload is not None and payload["message"] == "Target found":
-                            if robot.state != "moving_to_target":
+                            if (robot.goal_x,robot.goal_y) != payload["position"]:
                                 robot.goal_x, robot.goal_y = payload["position"]
                                 robot.state = "moving_to_target"
                     if robot.state == "found_target":
