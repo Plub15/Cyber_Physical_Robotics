@@ -19,6 +19,7 @@ class robot:
         self.foundTargetAhead = False
         self.foundTargetCurrent = False
         self.foundRobotAhead = False
+        self.NumfoundRobotCurrent = 0
         self.inbox = []
         self.logger = None
         self.iteration = 0  # Initialization; simulation iterations start at 1.
@@ -107,6 +108,7 @@ class robot:
             else:
                 self.foundTargetCurrent = False
             if len(current_block.robots) > 0:
+                self.NumfoundRobotCurrent = len(current_block.robots)
                 for other_robot in current_block.robots:
                     if other_robot.id != self.id:
                         # print(f"Robot {self.id}: Robot {other_robot.id} detected in same space as the robot.")

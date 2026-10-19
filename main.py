@@ -11,9 +11,9 @@ from target import can_pick_up, target
 
 MAP_WIDTH = 10
 MAP_HEIGHT = 10
-FRAME_DELAY_SECONDS = 0.025
+FRAME_DELAY_SECONDS = 0.01
 
-ITERATIONS = 1000
+ITERATIONS = 2000
 RANDOM_ROBOTS = 4
 RANDOM_TARGETS = 3
 
@@ -334,16 +334,17 @@ if __name__ == "__main__":
                     payload = robot.receive()
                     if robot.state == "searching":
                         if payload is not None and payload["message"] == "Target found":
-                            if (robot.goal_x,robot.goal_y) != payload["position"]:
-                                robot.goal_x, robot.goal_y = payload["position"]
-                                robot.state = "moving_to_target"
+                            robot.goal_x, robot.goal_y = payload["position"]
+                            robot.state = "moving_to_target"
                     if robot.state == "found_target":
                         if payload is not None and payload["message"] == "Moving to target" and payload["goal"] == (robot.x, robot.y):
                             robot.state = "waiting_for_help"
-                    if robot.state == "moving_to_target":
-                        if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") < robot.distance_to_goal_value:
+                        if payload is not None and payload["message"] == "found_target" and payload.get("goal") == (robot.x, robot.y) and payload["from"] < robot.id:
                             robot.state = "searching"
-                        if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") == robot.distance_to_goal_value:
+                    if robot.state == "moving_to_target":
+                        if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") < robot.distance_to_goal_value and payload["goal"] == (robot.goal_x, robot.goal_y):
+                            robot.state = "searching"
+                        if payload is not None and payload["message"] == "Moving to target" and payload.get("distance_to_goal") == robot.distance_to_goal_value and payload["goal"] == (robot.goal_x, robot.goal_y) and payload["from"] < robot.id:
                             if payload["from"] < robot.id:
                                 robot.state = "searching"
                         if payload is not None and payload["message"] == "Target reached" and payload.get("goal") == (robot.goal_x, robot.goal_y):
@@ -362,7 +363,7 @@ if __name__ == "__main__":
                 elif robot.state == "searching":
                     if robot.foundTargetAhead and not robot.foundRobotAhead:
                         robot.forward()
-                    if robot.foundTargetAhead and robot.foundRobotAhead:
+                    elif robot.foundTargetAhead and robot.foundRobotAhead:
                         move_direction = np.random.choice(
                             ["left", "right"],
                             p=[0.5, 0.5],
@@ -371,7 +372,7 @@ if __name__ == "__main__":
                             robot.turnLeft()
                         elif move_direction == "right":
                             robot.turnRight()
-                    elif robot.foundTargetCurrent:
+                    elif robot.foundTargetCurrent and robot.NumfoundRobotCurrent == 1:
                         robot.state = "found_target"
                     else:
                         move_direction = np.random.choice(
@@ -394,7 +395,7 @@ if __name__ == "__main__":
             for robot in world.robots.values():
                 # Robot communication handling (sending messages)
                 if robot.state == "found_target":
-                    robot.send("Target found")
+                    robot.send("Target found", goal_x=robot.x, goal_y=robot.y)
                 if robot.state == "moving_to_target":
                     robot.send("Moving to target", goal_x=robot.goal_x, goal_y=robot.goal_y)
                 if robot.state == "target_reached":
