@@ -182,6 +182,36 @@ def add_random_targets(world, count):
         y = np.random.randint(0, world.height)
         world.add_target(target(x, y))
 
+
+def move_towards_goal(current_robot):
+    """Use one forward/turn action to move the robot towards its goal."""
+    delta_x = current_robot.goal_x - current_robot.x
+    delta_y = current_robot.goal_y - current_robot.y
+
+    if delta_x == 0 and delta_y == 0:
+        return
+
+    # Finish the horizontal part of the route first, then the vertical part.
+    if delta_x > 0:
+        desired_orientation = 0  # East
+    elif delta_x < 0:
+        desired_orientation = 2  # West
+    elif delta_y > 0:
+        desired_orientation = 1  # North
+    else:
+        desired_orientation = 3  # South
+
+    if current_robot.orientation == desired_orientation:
+        current_robot.forward()
+        return
+
+    left_turns = (desired_orientation - current_robot.orientation) % 4
+    right_turns = (current_robot.orientation - desired_orientation) % 4
+    if left_turns <= right_turns:
+        current_robot.turnLeft()
+    else:
+        current_robot.turnRight()
+
 def test_check_pickups(case):
     """Test pickup results and state cleanup at the end of an iteration."""
     world = Map(10, 10)
@@ -317,18 +347,9 @@ if __name__ == "__main__":
                             robot.turnRight()
                 elif robot.state == 'moving_to_target':
                     if (robot.x, robot.y) == (robot.goal_x, robot.goal_y):
-                        robot.state = "found_target"
+                        robot.state = "waiting_for_pickup"
                     else:
-                        # Move towards the goal position
-                        if robot.x < robot.goal_x:
-                            robot.orientation = 0  # Facing right
-                        elif robot.x > robot.goal_x:
-                            robot.orientation = 2  # Facing left
-                        elif robot.y < robot.goal_y:
-                            robot.orientation = 1  # Facing up
-                        elif robot.y > robot.goal_y:
-                            robot.orientation = 3  # Facing down
-                        robot.forward()
+                        move_towards_goal(robot)
 
             check_pickups(world) # Check for pickups after all robots have moved
             for robot in world.robots.values():
