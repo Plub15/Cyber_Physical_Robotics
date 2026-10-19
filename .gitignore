@@ -221,3 +221,5 @@ __marimo__/
 
 # VS Code
 .vscode/
+# Robot communication logs
+logs/

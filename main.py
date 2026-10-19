@@ -1,17 +1,20 @@
+import argparse
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Polygon, Rectangle
 
 from map import map as Map
 from robot import robot
+from robot_logging import configure_robot_logs, close_robot_logs, open_log_viewers
 from target import can_pick_up, target
 
-MAP_WIDTH = 10
-MAP_HEIGHT = 10
-FRAME_DELAY_SECONDS = 0.05
+MAP_WIDTH = 5
+MAP_HEIGHT = 5
+FRAME_DELAY_SECONDS = 0.25
 
 ITERATIONS = 200
-RANDOM_ROBOTS = 2
+RANDOM_ROBOTS = 3
 RANDOM_TARGETS = 1
 
 def _robot_vertices(robot):
@@ -304,6 +307,10 @@ def test_check_pickups(case):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run the robot simulation.")
+    parser.add_argument("--debug-panes", action="store_true", help="Open a live log pane for each robot.")
+    args = parser.parse_args()
+    world = None
     try:
         world = Map(MAP_WIDTH, MAP_HEIGHT)
 
@@ -311,6 +318,10 @@ if __name__ == "__main__":
         _, ax = _show_frame(world)
         # Add robots to `world`
         add_random_robots(world, RANDOM_ROBOTS)
+        log_directory = configure_robot_logs(world.robots.values())
+        print(f"Robot logs: {log_directory}")
+        if args.debug_panes:
+            open_log_viewers(log_directory)
         # Add targets to `world`
         add_random_targets(world, RANDOM_TARGETS)
 
@@ -326,6 +337,9 @@ if __name__ == "__main__":
                 if robot.state == "found_target":
                     if payload is not None and payload["message"] == "Moving to target" and payload["goal"] == (robot.x, robot.y):
                         robot.state = "waiting_for_pickup"
+                if robot.state == "moving_to_target":
+                    if payload is not None and payload["message"] == "Moving to target" and payload["message_value"] > robot.message_value:
+                        robot.state = "searching"
 
             for robot in world.robots.values():
                 robot.sense(world)
@@ -365,3 +379,6 @@ if __name__ == "__main__":
                 _show_frame(world,ax=ax)
     except KeyboardInterrupt:
         print("Simulation interrupted by user.")
+    finally:
+        if world is not None:
+            close_robot_logs(world.robots.values())

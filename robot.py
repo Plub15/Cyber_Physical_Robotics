@@ -18,6 +18,7 @@ class robot:
         self.foundTargetAhead = False
         self.foundTargetCurrent = False
         self.inbox = []
+        self.logger = None
         self.message_value = 0
         self.goal_x = None
         self.goal_y = None
@@ -52,18 +53,23 @@ class robot:
         payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y)}
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
-        self.message_value += 1
         for recipient in self.world.robots.values():
             if recipient.id != self.id:
                 recipient.inbox.append(payload)
-        print(f"Robot {self.id} sent message: {message} with value {self.message_value} at position ({self.x}, {self.y})")
+        if self.logger is not None:
+            self.logger.debug("SEND to=all-others value=%s message=%r position=%s goal=%s state=%s",
+                              payload["message_value"], message, payload["position"], payload.get("goal"), self.state)
+        self.message_value += 1
 
     def receive(self):
         if not self.inbox:
             return None
 
         payload = self.inbox.pop(-1)
-        # print(f"Robot {self.id} received from Robot {payload['from']}: {payload['message']} at position {payload['position']}")
+        if self.logger is not None:
+            self.logger.debug("RECEIVE from=%s value=%s message=%r position=%s goal=%s state=%s",
+                              payload["from"], payload["message_value"], payload["message"],
+                              payload["position"], payload.get("goal"), self.state)
         self.message_value = max(self.message_value, payload["message_value"] + 1)
         return payload
 
