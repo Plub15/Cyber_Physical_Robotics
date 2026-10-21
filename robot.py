@@ -28,7 +28,9 @@ class robot:
         self.goal_y = None
         self.state = "searching"  # Initial state of the robot
         self.distance_to_goal_value = float("inf")  # Initialize distance to goal as infinity
-        self.patience_counter = 10  # Counter to track how long the robot has been waiting for help
+        self.patience_counter = 20  # Counter to track how long the robot has been waiting for help
+        self.helper_robot_id = None  # ID of the robot that is helping this robot
+        self.helper_robot_distance = float("inf")  # Distance to the helper robot
 
     def forward(self):
         """Move the robot forward by a given distance in the direction of its orientation."""
@@ -60,6 +62,8 @@ class robot:
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
             payload["distance_to_goal"] = self.distance_to_goal_value
+        if self.helper_robot_id is not None:
+            payload["helper_robot_id"] = self.helper_robot_id
         for recipient in self.world.robots.values():
             if recipient.id != self.id:
                 recipient.inbox.append(payload)

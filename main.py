@@ -13,7 +13,7 @@ MAP_WIDTH = 10
 MAP_HEIGHT = 10
 FRAME_DELAY_SECONDS = 0.01
 
-ITERATIONS = 10000
+ITERATIONS = 20000
 RANDOM_ROBOTS = 4
 RANDOM_TARGETS = 50
 
@@ -335,45 +335,37 @@ if __name__ == "__main__":
                     if robot.state == "searching":
                         if payload is not None and payload["message"] == "Target found":
                             robot.goal_x, robot.goal_y = payload["position"]
-                            robot.state = "moving_to_target"
+                            robot.state = "available_to_help"
+                            robot.patience_counter = 20
 
                     if robot.state == "found_target":
                         if (
                             payload is not None
-                            and payload["message"] in ["Moving to target", "Target reached"]
+                            and payload["message"] == "available_to_help"
                             and payload["goal"] == (robot.x, robot.y)
                         ):
-                            robot.state = "waiting_for_help"
+                            if payload.get("distance_to_goal") < robot.helper_robot_distance:
+                                robot.helper_robot_id = payload["from"]
+                                robot.helper_robot_distance = payload.get(
+                                    "distance_to_goal", float("inf")
+                                )
+
+                    if robot.state == "available_to_help":
+                        if (
+                            payload is not None
+                            and payload["message"] == "waiting_for_help"
+                            and payload.get("goal") == (robot.goal_x, robot.goal_y)
+                            and payload.get("helper_robot_id") == robot.id
+                        ):
+                            robot.state = "moving_to_target"
                         elif (
                             payload is not None
-                            and payload["message"] == "found_target"
-                            and payload.get("goal") == (robot.x, robot.y)
-                            and payload["from"] < robot.id
+                            and payload["message"] == "waiting_for_help"
+                            and payload.get("goal") == (robot.goal_x, robot.goal_y)
+                            and payload.get("helper_robot_id") != robot.id
                         ):
                             robot.state = "searching"
 
-                    if robot.state == "moving_to_target":
-                        if (
-                            payload is not None
-                            and payload["message"] == "Moving to target"
-                            and payload.get("distance_to_goal") < robot.distance_to_goal_value
-                            and payload["goal"] == (robot.goal_x, robot.goal_y)
-                        ):
-                            robot.state = "searching"
-                        if (
-                            payload is not None
-                            and payload["message"] == "Moving to target"
-                            and payload.get("distance_to_goal") == robot.distance_to_goal_value
-                            and payload["goal"] == (robot.goal_x, robot.goal_y)
-                            and payload["from"] < robot.id
-                        ):
-                            robot.state = "searching"
-                        if (
-                            payload is not None
-                            and payload["message"] == "Target reached"
-                            and payload.get("goal") == (robot.goal_x, robot.goal_y)
-                        ):
-                            robot.state = "searching"
 
                     if robot.state == "waiting_for_help":
                         if (
@@ -383,10 +375,13 @@ if __name__ == "__main__":
                         ):
                             robot.state = "waiting_for_pickup"
 
-                if robot.state == "found_target":
+                if robot.state == "found_target" and robot.helper_robot_id is not None:
+                    robot.state = "waiting_for_help"
+
+                if robot.state in ["found_target","available_to_help"]:
                     robot.patience_counter -= 1
-                if robot.patience_counter <= 0:
-                    robot.state = "searching"
+                    if robot.patience_counter <= 0:
+                        robot.state = "give_up"
 
             for robot in world.robots.values():
                 robot.sense(world)
@@ -394,6 +389,24 @@ if __name__ == "__main__":
                 if robot.state == "waiting_for_pickup":
                     robot.pickUp()
                     robot.state = "searching"
+                    robot.helper_robot_id = None
+                    robot.helper_robot_distance = float("inf")
+
+                elif robot.state == "give_up":
+                    move_direction = np.random.choice(
+                        ["forward", "left", "right"],
+                        p=[0.6, 0.2, 0.2],
+                    )
+                    if move_direction == "forward":
+                        robot.forward()
+                    elif move_direction == "left":
+                        robot.turnLeft()
+                    elif move_direction == "right":
+                        robot.turnRight()
+                    robot.state = "searching"
+                    robot.helper_robot_id = None
+                    robot.helper_robot_distance = float("inf")
+                    robot.patience_counter = 20  # Reset patience counter after giving up
 
                 elif robot.state == "searching":
                     if robot.foundTargetAhead and not robot.foundRobotAhead:
@@ -409,7 +422,7 @@ if __name__ == "__main__":
                             robot.turnRight()
                     elif robot.foundTargetCurrent and robot.NumfoundRobotCurrent == 1:
                         robot.state = "found_target"
-                        robot.patience_counter = 10
+                        robot.patience_counter = 20
                     else:
                         move_direction = np.random.choice(
                             ["forward", "left", "right"],
@@ -438,15 +451,17 @@ if __name__ == "__main__":
                     robot.send("Target reached", goal_x=robot.goal_x, goal_y=robot.goal_y)
                     robot.state = "waiting_for_pickup"
                 if robot.state == "waiting_for_help":
-                    robot.send("waiting_for_help", goal_x=robot.goal_x, goal_y=robot.goal_y)
+                    robot.send("waiting_for_help", goal_x=robot.x, goal_y=robot.y)
+                if robot.state == "available_to_help":
+                    robot.send("available_to_help", goal_x=robot.goal_x, goal_y=robot.goal_y)
 
 
-                # Update the map view after each robot's action
-                target_count = sum(
-                    len(block.targets) for row in world.blocks for block in row
-                )
-                add_random_targets(world, RANDOM_TARGETS - target_count)  # Add new targets if needed
-                _show_frame(world,ax=ax)
+            # Update the map view after each robot's action
+            target_count = sum(
+                len(block.targets) for row in world.blocks for block in row
+            )
+            add_random_targets(world, RANDOM_TARGETS - target_count)  # Add new targets if needed
+            _show_frame(world,ax=ax)
     except KeyboardInterrupt:
         print("Simulation interrupted by user.")
     finally:
