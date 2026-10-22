@@ -68,8 +68,9 @@ class robot:
             if recipient.id != self.id:
                 recipient.inbox.append(payload)
         if self.logger is not None:
-            self.logger.debug("SEND to=all-others value=%s message=%r position=%s goal=%s state=%s",
-                              payload["message_value"], message, payload["position"], payload.get("goal"), self.state)
+            self.logger.debug("SEND to=all-others value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
+                              payload["message_value"], message, payload["position"], payload.get("goal"), self.state,
+                              payload.get("distance_to_goal"), payload.get("helper_robot_id"))
         self.message_value += 1
 
     def receive(self):
@@ -78,9 +79,10 @@ class robot:
 
         payload = self.inbox.pop(0)
         if self.logger is not None:
-            self.logger.debug("RECEIVE from=%s value=%s message=%r position=%s goal=%s state=%s",
+            self.logger.debug("RECEIVE from=%s value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["from"], payload["message_value"], payload["message"],
-                              payload["position"], payload.get("goal"), self.state)
+                              payload["position"], payload.get("goal"), self.state,
+                              payload.get("distance_to_goal"), payload.get("helper_robot_id"))
         self.message_value = max(self.message_value, payload["message_value"] + 1)
         return payload
 

@@ -6,7 +6,7 @@ from matplotlib.patches import Polygon, Rectangle
 
 from map import map as Map
 from robot import robot
-from robot_logging import configure_robot_logs, close_robot_logs, open_log_viewers
+from robot_logging import configure_robot_logs, close_robot_logs, open_log_viewers, log_robot_changes
 from target import can_pick_up, target
 
 MAP_WIDTH = 10
@@ -159,6 +159,10 @@ def check_pickups(world):
         checked_blocks.add(block_position)
         picked_up = can_pick_up(robot)
         results.append((block_position, picked_up))
+        for participant in current_block.robots:
+            if participant.logger is not None:
+                participant.logger.info("PICKUP position=%s success=%s readyToPick=%s",
+                                        block_position, picked_up, participant.readyToPick)
 
         if picked_up:
             world.remove_target(current_block.targets[0])
@@ -167,6 +171,7 @@ def check_pickups(world):
     # Prepare for the next iteration.
     for robot in world.robots.values():
         robot.readyToPick = False
+        log_robot_changes(robot, "pickup")
 
     return results
 
@@ -376,6 +381,8 @@ if __name__ == "__main__":
                         ):
                             robot.state = "waiting_for_pickup"
 
+                    log_robot_changes(robot, "receive")
+
                 if robot.state == "found_target" and robot.helper_robot_id is not None:
                     robot.state = "waiting_for_help"
 
@@ -383,9 +390,11 @@ if __name__ == "__main__":
                     robot.patience_counter -= 1
                     if robot.patience_counter <= 0:
                         robot.state = "give_up"
+                log_robot_changes(robot, "communication")
 
             for robot in world.robots.values():
                 robot.sense(world)
+                log_robot_changes(robot, "sense")
                 # Robot action decision-making
                 if robot.state == "waiting_for_pickup":
                     robot.pickUp()
@@ -441,6 +450,8 @@ if __name__ == "__main__":
                     else:
                         move_towards_goal(robot)
 
+                log_robot_changes(robot, "action")
+
             check_pickups(world) # Check for pickups after all robots have moved
             for robot in world.robots.values():
                 # Robot communication handling (sending messages)
@@ -455,6 +466,7 @@ if __name__ == "__main__":
                     robot.send("waiting_for_help", goal_x=robot.x, goal_y=robot.y)
                 if robot.state == "available_to_help":
                     robot.send("available_to_help", goal_x=robot.goal_x, goal_y=robot.goal_y)
+                log_robot_changes(robot, "send")
 
 
             # Update the map view after each robot's action

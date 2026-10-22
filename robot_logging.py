@@ -20,6 +20,38 @@ class RobotIterationFilter(logging.Filter):
         return True
 
 
+def log_robot_changes(robot, phase):
+    """Record changed decision inputs and states, including silent transitions."""
+    if robot.logger is None:
+        return
+    snapshot = {
+        "state": robot.state,
+        "position": (robot.x, robot.y),
+        "orientation": robot.orientation,
+        "goal": (robot.goal_x, robot.goal_y),
+        "distance_to_goal_value": robot.distance_to_goal_value,
+        "patience_counter": robot.patience_counter,
+        "helper_robot_id": robot.helper_robot_id,
+        "helper_robot_distance": robot.helper_robot_distance,
+        "readyToPick": robot.readyToPick,
+        "foundTargetAhead": robot.foundTargetAhead,
+        "foundTargetCurrent": robot.foundTargetCurrent,
+        "foundRobotAhead": robot.foundRobotAhead,
+        "NumfoundRobotCurrent": robot.NumfoundRobotCurrent,
+        "message_value": robot.message_value,
+    }
+    previous = getattr(robot.logger, "_robot_snapshot", None)
+    changes = []
+    for name, value in snapshot.items():
+        if previous is None:
+            changes.append(f"{name}={value!r}")
+        elif previous[name] != value:
+            changes.append(f"{name}={previous[name]!r}->{value!r}")
+    if changes:
+        robot.logger.debug("UPDATE phase=%s %s", phase, " ".join(changes))
+    robot.logger._robot_snapshot = snapshot
+
+
 def configure_robot_logs(robots, log_root=None):
     root = Path(log_root) if log_root is not None else Path(__file__).parent / "logs"
     run_directory = root / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -34,12 +66,14 @@ def configure_robot_logs(robots, log_root=None):
         logger.addHandler(handler)
         item.logger = logger
         logger.info("START position=%s state=%s", (item.x, item.y), item.state)
+        log_robot_changes(item, "start")
     return run_directory
 
 
 def close_robot_logs(robots):
     for item in robots:
         if item.logger is not None:
+            log_robot_changes(item, "end")
             item.logger.info("END")
             for handler in item.logger.handlers[:]:
                 handler.close()
