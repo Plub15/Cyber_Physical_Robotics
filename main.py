@@ -15,7 +15,7 @@ FRAME_DELAY_SECONDS = 0.01
 
 ITERATIONS = 20000
 RANDOM_ROBOTS = 4
-RANDOM_TARGETS = 50
+RANDOM_TARGETS = 10
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
@@ -162,6 +162,7 @@ def check_pickups(world):
 
         if picked_up:
             world.remove_target(current_block.targets[0])
+            world.score += 1
 
     # Prepare for the next iteration.
     for robot in world.robots.values():
@@ -462,8 +463,14 @@ if __name__ == "__main__":
             )
             add_random_targets(world, RANDOM_TARGETS - target_count)  # Add new targets if needed
             _show_frame(world,ax=ax)
+
+            print(
+                f"\r[Iteration: {i + 1}/{ITERATIONS}] [Score: {world.score}]",
+                end="", flush=True,
+            )
     except KeyboardInterrupt:
-        print("Simulation interrupted by user.")
+        print("\nSimulation interrupted by user.")
     finally:
         if world is not None:
+            print(f"\nFinal score: {world.score}")
             close_robot_logs(world.robots.values())

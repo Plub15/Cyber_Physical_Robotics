@@ -17,6 +17,7 @@ class map:
         self.height = height
         self.next_robot_id = 0
         self.robots = {}
+        self.score = 0  # One point per successfully collected target.
         self.blocks = [
             [block(x, y) for x in range(width)]
             for y in range(height)
