@@ -14,10 +14,10 @@ def can_move_forward(robot, next_x, next_y):
     if 0 <= next_x < robot.world.width and 0 <= next_y < robot.world.height:
         return True
 
-    logger.warning(
-        "Robot %s ran into the wall",
-        robot.id,
-    )
+    # logger.warning(
+    #     "Robot %s ran into the wall",
+    #     robot.id,
+    # )
     return False
 
 def can_pick_up(robot):
