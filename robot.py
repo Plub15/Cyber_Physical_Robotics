@@ -1,4 +1,5 @@
 from rules import can_move_forward
+import numpy as np
 
 
 
@@ -58,7 +59,10 @@ class robot:
 
     def send(self, message, goal_x=None, goal_y=None):
 
-        payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y)}
+        #initialize delay
+        r = np.random.randint(1,3)
+        r = 0 #temporary for testing, remove later
+        payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "delay": r}
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
             payload["distance_to_goal"] = self.distance_to_goal_value
@@ -66,18 +70,21 @@ class robot:
             payload["helper_robot_id"] = self.helper_robot_id
         for recipient in self.world.robots.values():
             if recipient.id != self.id:
-                recipient.inbox.append(payload)
+                recipient.inbox.append(payload.copy())
         if self.logger is not None:
             self.logger.debug("SEND to=all-others value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["message_value"], message, payload["position"], payload.get("goal"), self.state,
                               payload.get("distance_to_goal"), payload.get("helper_robot_id"))
         self.message_value += 1
 
-    def receive(self):
+    def receive(self,payload):
         if not self.inbox:
             return None
 
-        payload = self.inbox.pop(0)
+        if payload["delay"] > 0:
+            payload["delay"] -= 1
+            return None
+        self.inbox.remove(payload)
         if self.logger is not None:
             self.logger.debug("RECEIVE from=%s value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["from"], payload["message_value"], payload["message"],

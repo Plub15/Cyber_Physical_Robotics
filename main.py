@@ -11,11 +11,11 @@ from target import can_pick_up, target
 
 MAP_WIDTH = 10
 MAP_HEIGHT = 10
-FRAME_DELAY_SECONDS = 0.01
+FRAME_DELAY_SECONDS = 0.03
 
 ITERATIONS = 20000
 RANDOM_ROBOTS = 4
-RANDOM_TARGETS = 10
+RANDOM_TARGETS = 50
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
@@ -336,8 +336,9 @@ if __name__ == "__main__":
                 current_robot.iteration = i + 1
             for robot in world.robots.values():
                 # Robot communication handling (receiving messages)
-                for _ in range(len(robot.inbox)):
-                    payload = robot.receive()
+                for payload in robot.inbox[:]:
+                    if robot.receive(payload) is None:
+                        continue
                     if robot.state == "searching":
                         if payload is not None and payload["message"] == "Target found":
                             robot.goal_x, robot.goal_y = payload["position"]
@@ -473,7 +474,8 @@ if __name__ == "__main__":
             target_count = sum(
                 len(block.targets) for row in world.blocks for block in row
             )
-            add_random_targets(world, RANDOM_TARGETS - target_count)  # Add new targets if needed
+            if target_count <= 0:
+                add_random_targets(world, RANDOM_TARGETS)  # Add new targets if needed
             _show_frame(world,ax=ax)
 
             print(
