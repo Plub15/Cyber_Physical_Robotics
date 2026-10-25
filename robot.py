@@ -33,14 +33,14 @@ class robot:
         self.helper_robot_id = None  # ID of the robot that is helping this robot
         self.helper_robot_distance = float("inf")  # Distance to the helper robot
 
-    def forward(self):
-        """Move the robot forward by a given distance in the direction of its orientation."""
+    def forward(self, *, validated=False):
+        """Move forward, optionally using approval from the iteration's rule phase."""
         delta_x, delta_y = self.DIRECTIONS[self.orientation]
 
         next_x = self.x + delta_x
         next_y = self.y + delta_y
 
-        if not can_move_forward(self, next_x, next_y):
+        if not validated and not can_move_forward(self, next_x, next_y):
             return
         else:
             self.world.move_robot(self, next_x, next_y)
