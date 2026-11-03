@@ -57,11 +57,12 @@ class robot:
         self.readyToPick = True
         pass
 
-    def send(self, message, goal_x=None, goal_y=None):
+    def send(self, message, goal_x=None, goal_y=None, delay=False, max_delay=3):
 
         #initialize delay
-        r = np.random.randint(1,3)
-        r = 0 #temporary for testing, remove later
+        r = 0
+        if delay:
+            r = np.random.randint(0, max_delay)
         payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "delay": r}
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)

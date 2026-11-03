@@ -15,8 +15,8 @@ MAP_HEIGHT = 10
 FRAME_DELAY_SECONDS = 0.03
 
 ITERATIONS = 20000
-RANDOM_ROBOTS = 16
-RANDOM_TARGETS = 50
+RANDOM_ROBOTS = 4
+RANDOM_TARGETS = 10
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
@@ -193,7 +193,7 @@ def add_random_targets(world, count):
         world.add_target(target(x, y))
 
 
-def decide_goal_action(current_robot):
+def move_to_goal(current_robot):
     """Choose one forward/turn action towards the goal without executing it."""
     delta_x = current_robot.goal_x - current_robot.x
     delta_y = current_robot.goal_y - current_robot.y
@@ -252,7 +252,7 @@ def decide_action(current_robot):
         if (current_robot.x, current_robot.y) == (current_robot.goal_x, current_robot.goal_y):
             current_robot.state = "target_reached"
         else:
-            action = decide_goal_action(current_robot)
+            action = move_to_goal(current_robot)
 
     if current_robot.logger is not None:
         current_robot.logger.debug("DECISION action=%s", action)
@@ -284,96 +284,6 @@ def perform_actions(world, approved_actions):
     for current_robot in world.robots.values():
         current_robot.readyToPick = False
         log_robot_changes(current_robot, "pickup")
-
-def test_check_pickups(case):
-    """Test pickup results and state cleanup at the end of an iteration."""
-    world = Map(10, 10)
-    if case == 1:
-        world.add_robot(robot(3, 4, 0))
-        current_robot = next(iter(world.robots.values()))
-
-        plt.ion()
-        _, ax = _show_frame(world)
-        current_robot.forward()
-        check_pickups(world)
-        _show_frame(world,ax=ax)
-        current_robot.forward()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        current_robot.pickUp()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        plt.ioff()
-        plt.show()
-    if case == 2:
-        world.add_robot(robot(3, 4, 0))
-        world.add_target(target(5, 4))
-        current_robot = next(iter(world.robots.values()))
-
-        plt.ion()
-        _, ax = _show_frame(world)
-        current_robot.forward()
-        check_pickups(world)
-        _show_frame(world,ax=ax)
-        current_robot.forward()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        current_robot.pickUp()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        plt.ioff()
-        plt.show()
-    if case == 3:
-        world.add_robot(robot(3, 4, 0))
-        world.add_robot(robot(7, 4, 180))
-        world.add_target(target(5, 4))
-        robot1 = list(world.robots.values())[0]
-        robot2 = list(world.robots.values())[1]
-
-        plt.ion()
-        _, ax = _show_frame(world)
-        robot1.forward()
-        robot2.forward()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        robot1.forward()
-        robot2.forward()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        robot1.pickUp()
-        robot2.pickUp()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        plt.ioff()
-        plt.show()
-    if case == 4:
-        world.add_robot(robot(3, 4, 0))
-        world.add_robot(robot(7, 4, 180))
-        world.add_robot(robot(5, 2, 90))
-        world.add_target(target(5, 4))
-        robot1 = list(world.robots.values())[0]
-        robot2 = list(world.robots.values())[1]
-        robot3 = list(world.robots.values())[2]
-
-        plt.ion()
-        _, ax = _show_frame(world)
-        robot1.forward()
-        robot2.forward()
-        robot3.forward()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        robot1.forward()
-        robot2.forward()
-        robot3.forward()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        robot1.pickUp()
-        robot2.pickUp()
-        robot3.pickUp()
-        check_pickups(world)
-        _show_frame(world, ax=ax)
-        plt.ioff()
-        plt.show()
 
 
 def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
