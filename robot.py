@@ -21,6 +21,7 @@ class robot:
         self.foundTargetCurrent = False
         self.foundRobotAhead = False
         self.NumfoundRobotCurrent = 0
+        self.RobotIDsInCurrentBlock = []
         self.inbox = []
         self.logger = None
         self.iteration = 0  # Initialization; simulation iterations start at 1.
@@ -100,6 +101,8 @@ class robot:
         front_x = self.x + delta_x
         front_y = self.y + delta_y
 
+        self.RobotIDsInCurrentBlock = []
+
         front_block = world.get_block(front_x, front_y)
         self.foundTargetAhead = False
         if front_block is not None:
@@ -127,6 +130,7 @@ class robot:
                 for other_robot in current_block.robots:
                     if other_robot.id != self.id:
                         # print(f"Robot {self.id}: Robot {other_robot.id} detected in same space as the robot.")
+                        self.RobotIDsInCurrentBlock.append(other_robot.id)
                         continue
 
         # Calculate the distance to the goal if it exists

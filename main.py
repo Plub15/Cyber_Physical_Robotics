@@ -16,7 +16,7 @@ FRAME_DELAY_SECONDS = 0.03
 
 ITERATIONS = 20000
 RANDOM_ROBOTS = 4
-RANDOM_TARGETS = 10
+RANDOM_TARGETS = 50
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
@@ -224,7 +224,7 @@ def move_to_goal(current_robot):
 def decide_action(current_robot):
     """Update decision state and choose an action without changing the world."""
     action = None
-    if current_robot.state == "waiting_for_pickup":
+    if current_robot.state == "waiting_for_help" and current_robot.helper_robot_id in current_robot.RobotIDsInCurrentBlock:
         action = "pick_up"
         current_robot.state = "searching"
         current_robot.helper_robot_id = None
@@ -250,7 +250,8 @@ def decide_action(current_robot):
 
     elif current_robot.state == "moving_to_target":
         if (current_robot.x, current_robot.y) == (current_robot.goal_x, current_robot.goal_y):
-            current_robot.state = "target_reached"
+            action = "pick_up"
+            current_robot.state = "searching"
         else:
             action = move_to_goal(current_robot)
 
@@ -333,15 +334,6 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
                 ):
                     robot.state = "searching"
 
-
-            if robot.state == "waiting_for_help":
-                if (
-                    payload is not None
-                    and payload["message"] == "Target reached"
-                    and payload.get("goal") == (robot.x, robot.y)
-                ):
-                    robot.state = "waiting_for_pickup"
-
             log_robot_changes(robot, "receive")
 
         if robot.state == "found_target" and robot.helper_robot_id is not None:
@@ -368,9 +360,6 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
             robot.send("Target found", goal_x=robot.x, goal_y=robot.y)
         if robot.state == "moving_to_target":
             robot.send("Moving to target", goal_x=robot.goal_x, goal_y=robot.goal_y)
-        if robot.state == "target_reached":
-            robot.send("Target reached", goal_x=robot.goal_x, goal_y=robot.goal_y)
-            robot.state = "waiting_for_pickup"
         if robot.state == "waiting_for_help":
             robot.send("waiting_for_help", goal_x=robot.x, goal_y=robot.y)
         if robot.state == "available_to_help":
