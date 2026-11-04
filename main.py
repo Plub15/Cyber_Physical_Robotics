@@ -221,46 +221,6 @@ def move_to_goal(current_robot):
     return "right"
 
 
-def decide_action(current_robot):
-    """Update decision state and choose an action without changing the world."""
-    action = None
-    if current_robot.state == "waiting_for_help" and current_robot.helper_robot_id in current_robot.RobotIDsInCurrentBlock:
-        action = "pick_up"
-        current_robot.state = "searching"
-        current_robot.helper_robot_id = None
-        current_robot.helper_robot_distance = float("inf")
-
-    elif current_robot.state == "give_up":
-        action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
-        current_robot.state = "searching"
-        current_robot.helper_robot_id = None
-        current_robot.helper_robot_distance = float("inf")
-        current_robot.patience_counter = 20
-
-    elif current_robot.state == "searching":
-        if current_robot.foundTargetAhead and not current_robot.foundRobotAhead:
-            action = "forward"
-        elif current_robot.foundTargetAhead and current_robot.foundRobotAhead:
-            action = np.random.choice(["left", "right"], p=[0.5, 0.5])
-        elif current_robot.foundTargetCurrent and current_robot.NumfoundRobotCurrent == 1:
-            current_robot.state = "found_target"
-            current_robot.patience_counter = 20
-        else:
-            action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
-
-    elif current_robot.state == "moving_to_target":
-        if (current_robot.x, current_robot.y) == (current_robot.goal_x, current_robot.goal_y):
-            action = "pick_up"
-            current_robot.state = "searching"
-        else:
-            action = move_to_goal(current_robot)
-
-    if current_robot.logger is not None:
-        current_robot.logger.debug("DECISION action=%s", action)
-    log_robot_changes(current_robot, "decision")
-    return action
-
-
 def perform_actions(world, approved_actions):
     """Execute a validated plan, collecting each approved target only once."""
     picked_targets = {}
@@ -349,7 +309,42 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
     for current_robot in world.robots.values():
         current_robot.sense(world)
         log_robot_changes(current_robot, "sense")
-        planned_actions[current_robot] = decide_action(current_robot)
+        action = None
+        if current_robot.state == "waiting_for_help" and current_robot.helper_robot_id in current_robot.RobotIDsInCurrentBlock:
+            action = "pick_up"
+            current_robot.state = "searching"
+            current_robot.helper_robot_id = None
+            current_robot.helper_robot_distance = float("inf")
+
+        elif current_robot.state == "give_up":
+            action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
+            current_robot.state = "searching"
+            current_robot.helper_robot_id = None
+            current_robot.helper_robot_distance = float("inf")
+            current_robot.patience_counter = 20
+
+        elif current_robot.state == "searching":
+            if current_robot.foundTargetAhead and not current_robot.foundRobotAhead:
+                action = "forward"
+            elif current_robot.foundTargetAhead and current_robot.foundRobotAhead:
+                action = np.random.choice(["left", "right"], p=[0.5, 0.5])
+            elif current_robot.foundTargetCurrent and current_robot.NumfoundRobotCurrent == 1:
+                current_robot.state = "found_target"
+                current_robot.patience_counter = 20
+            else:
+                action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
+
+        elif current_robot.state == "moving_to_target":
+            if (current_robot.x, current_robot.y) == (current_robot.goal_x, current_robot.goal_y):
+                action = "pick_up"
+                current_robot.state = "searching"
+            else:
+                action = move_to_goal(current_robot)
+
+        if current_robot.logger is not None:
+            current_robot.logger.debug("DECISION action=%s", action)
+        log_robot_changes(current_robot, "decision")
+        planned_actions[current_robot] = action
 
     approved_actions = check_illegal_behavior(planned_actions)
     perform_actions(world, approved_actions)
