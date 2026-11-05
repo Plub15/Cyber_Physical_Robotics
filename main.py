@@ -260,39 +260,7 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
         for payload in robot.inbox[:]:
             if robot.receive(payload) is None:
                 continue
-            if robot.state == "searching":
-                if payload is not None and payload["message"] == "Target found":
-                    robot.goal_x, robot.goal_y = payload["position"]
-                    robot.state = "available_to_help"
-                    robot.patience_counter = 20
-
-            if robot.state == "found_target":
-                if (
-                    payload is not None
-                    and payload["message"] == "available_to_help"
-                    and payload["goal"] == (robot.x, robot.y)
-                ):
-                    if payload.get("distance_to_goal") < robot.helper_robot_distance:
-                        robot.helper_robot_id = payload["from"]
-                        robot.helper_robot_distance = payload.get(
-                            "distance_to_goal", float("inf")
-                        )
-
-            if robot.state == "available_to_help":
-                if (
-                    payload is not None
-                    and payload["message"] == "waiting_for_help"
-                    and payload.get("goal") == (robot.goal_x, robot.goal_y)
-                    and payload.get("helper_robot_id") == robot.id
-                ):
-                    robot.state = "moving_to_target"
-                elif (
-                    payload is not None
-                    and payload["message"] == "waiting_for_help"
-                    and payload.get("goal") == (robot.goal_x, robot.goal_y)
-                    and payload.get("helper_robot_id") != robot.id
-                ):
-                    robot.state = "searching"
+            #TODO: Implement more sophisticated decision-making logic based on the robot's inbox messages and state.
 
             log_robot_changes(robot, "receive")
 
@@ -307,42 +275,11 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
 
     planned_actions = {}
     for current_robot in world.robots.values():
+        # Sense the environment and decide on an action based on the robot's state and surroundings.
         current_robot.sense(world)
         log_robot_changes(current_robot, "sense")
         action = None
-        if current_robot.state == "waiting_for_help" and current_robot.helper_robot_id in current_robot.RobotIDsInCurrentBlock:
-            action = "pick_up"
-            current_robot.state = "searching"
-            current_robot.helper_robot_id = None
-            current_robot.helper_robot_distance = float("inf")
-
-        elif current_robot.state == "give_up":
-            action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
-            current_robot.state = "searching"
-            current_robot.helper_robot_id = None
-            current_robot.helper_robot_distance = float("inf")
-            current_robot.patience_counter = 20
-
-        elif current_robot.state == "searching":
-            if current_robot.foundTargetAhead and not current_robot.foundRobotAhead:
-                action = "forward"
-            elif current_robot.foundTargetAhead and current_robot.foundRobotAhead:
-                action = np.random.choice(["left", "right"], p=[0.5, 0.5])
-            elif current_robot.foundTargetCurrent and current_robot.NumfoundRobotCurrent == 1:
-                current_robot.state = "found_target"
-                current_robot.patience_counter = 20
-            else:
-                action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
-
-        elif current_robot.state == "moving_to_target":
-            if (current_robot.x, current_robot.y) == (current_robot.goal_x, current_robot.goal_y):
-                action = "pick_up"
-                current_robot.state = "searching"
-            else:
-                action = move_to_goal(current_robot)
-
-        if current_robot.logger is not None:
-            current_robot.logger.debug("DECISION action=%s", action)
+        #TODO: Implement more sophisticated decision-making logic based on the robot's state and surroundings.
         log_robot_changes(current_robot, "decision")
         planned_actions[current_robot] = action
 
@@ -351,14 +288,7 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
 
     for robot in world.robots.values():
         # Robot communication handling (sending messages)
-        if robot.state == "found_target":
-            robot.send("Target found", goal_x=robot.x, goal_y=robot.y)
-        if robot.state == "moving_to_target":
-            robot.send("Moving to target", goal_x=robot.goal_x, goal_y=robot.goal_y)
-        if robot.state == "waiting_for_help":
-            robot.send("waiting_for_help", goal_x=robot.x, goal_y=robot.y)
-        if robot.state == "available_to_help":
-            robot.send("available_to_help", goal_x=robot.goal_x, goal_y=robot.goal_y)
+        #TODO: Implement more sophisticated communication logic based on the robot's state.
         log_robot_changes(robot, "send")
 
 
