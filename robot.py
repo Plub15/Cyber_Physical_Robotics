@@ -33,6 +33,7 @@ class robot:
         self.patience_counter = 20  # Counter to track how long the robot has been waiting for help
         self.helper_robot_id = None  # ID of the robot that is helping this robot
         self.helper_robot_distance = float("inf")  # Distance to the helper robot
+        self.promise = 0
 
     def forward(self, *, validated=False):
         """Move forward, optionally using approval from the iteration's rule phase."""
@@ -58,12 +59,10 @@ class robot:
         self.readyToPick = True
         pass
 
-    def send(self, message, goal_x=None, goal_y=None, delay=False, max_delay=3):
+    def send(self, message, goal_x=None, goal_y=None, delay=True, max_delay=5):
 
         #initialize delay
         r = 0
-        if delay:
-            r = np.random.randint(0, max_delay)
         payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "delay": r}
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
@@ -71,6 +70,8 @@ class robot:
         if self.helper_robot_id is not None:
             payload["helper_robot_id"] = self.helper_robot_id
         for recipient in self.world.robots.values():
+            if delay:
+                payload["delay"] = np.random.randint(1, max_delay)
             if recipient.id != self.id:
                 recipient.inbox.append(payload.copy())
         if self.logger is not None:
