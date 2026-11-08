@@ -35,7 +35,6 @@ def log_robot_changes(robot, phase):
         "helper_robot_distance": robot.helper_robot_distance,
         "readyToPick": robot.readyToPick,
         "foundTargetAhead": robot.foundTargetAhead,
-        "foundTargetCurrent": robot.foundTargetCurrent,
         "foundRobotAhead": robot.foundRobotAhead,
         "NumfoundRobotCurrent": robot.NumfoundRobotCurrent,
         "message_value": robot.message_value,

@@ -16,7 +16,9 @@ FRAME_DELAY_SECONDS = 0.03
 
 ITERATIONS = 20000
 RANDOM_ROBOTS = 4
-RANDOM_TARGETS = 50
+RANDOM_TARGETS = 3
+
+PROMISE_THRESHOLD = 2  # Number of promises required for a robot to consider another robot as a helper
 
 def _robot_vertices(robot):
     """Return a direction-facing triangle centred on the robot."""
@@ -260,17 +262,27 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
         for payload in robot.inbox[:]:
             if robot.receive(payload) is None:
                 continue
-            #TODO: Implement more sophisticated decision-making logic based on the robot's inbox messages and state.
+
+            if robot.state == "searching" and payload["message"] == "need_help":
+                robot.state = "available_to_help"
+                robot.goal_x, robot.goal_y = payload.get("goal", (robot.x, robot.y))
+                robot.distance_to_goal_value = payload.get("distance_to_goal", float("inf"))
+
+            elif robot.state == "needs_help_sent" and payload["message"] == "available_to_help" and payload["goal"] == (robot.x, robot.y):
+                robot.promise += 1
+                if payload["distance_to_goal"] < robot.helper_robot_distance:
+                    robot.helper_robot_distance = payload["distance_to_goal"]
+                    robot.helper_robot_id = payload["from"]
+                if robot.promise >= PROMISE_THRESHOLD:
+                    robot.state = "help_request"
+
+            elif robot.state == "available_to_help_sent" and payload["message"] == "help_request":
+                if robot.id == payload.get("helper_robot_id"):
+                    robot.state = "moving_to_help"
+                else:
+                    robot.state = "searching"
 
             log_robot_changes(robot, "receive")
-
-        if robot.state == "found_target" and robot.helper_robot_id is not None:
-            robot.state = "waiting_for_help"
-
-        if robot.state in ["found_target","available_to_help"]:
-            robot.patience_counter -= 1
-            if robot.patience_counter <= 0:
-                robot.state = "give_up"
         log_robot_changes(robot, "communication")
 
     planned_actions = {}
@@ -279,7 +291,41 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
         current_robot.sense(world)
         log_robot_changes(current_robot, "sense")
         action = None
-        #TODO: Implement more sophisticated decision-making logic based on the robot's state and surroundings.
+        if current_robot.state == "searching":
+            if current_robot.foundTargetAhead and not current_robot.foundRobotAhead:
+                action = "forward"
+                current_robot.state = "found_target"
+            elif current_robot.foundTargetAhead and current_robot.foundRobotAhead:
+                action = np.random.choice(["left", "right"], p=[0.5, 0.5])
+            else:
+                action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
+
+        elif current_robot.state == "found_target":
+            if current_robot.NumfoundRobotCurrent == 2:
+                action = "pick_up"
+            elif current_robot.NumfoundRobotCurrent == 1:
+                current_robot.state = "needs_help"
+            elif current_robot.NumfoundRobotCurrent > 2:
+                if current_robot.ID in current_robot.RobotIDsInCurrentBlock[:2]:
+                    action = "pick_up"
+                else:
+                    action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
+
+        elif current_robot.state == "moving_to_help":
+            if (current_robot.x, current_robot.y) == (current_robot.goal_x, current_robot.goal_y):
+                action = "pick_up"
+                current_robot.state = "searching"
+                current_robot.distance_to_goal_value = float("inf")
+            else:
+                action = move_to_goal(current_robot)
+
+        elif current_robot.state == "help_request_sent":
+            if current_robot.helper_robot_id in current_robot.RobotIDsInCurrentBlock:
+                action = "pick_up"
+                current_robot.state = "searching"
+                current_robot.helper_robot_id = None
+                current_robot.distance_to_goal_value = float("inf")
+
         log_robot_changes(current_robot, "decision")
         planned_actions[current_robot] = action
 
@@ -288,7 +334,15 @@ def run_iteration(world, iteration, target_count=RANDOM_TARGETS):
 
     for robot in world.robots.values():
         # Robot communication handling (sending messages)
-        #TODO: Implement more sophisticated communication logic based on the robot's state.
+        if robot.state == "needs_help":
+            robot.send("need_help", goal_x=robot.goal_x, goal_y=robot.goal_y)
+            robot.state = "needs_help_sent"
+        elif robot.state == "available_to_help":
+            robot.send("available_to_help", goal_x=robot.goal_x, goal_y=robot.goal_y)
+            robot.state = "available_to_help_sent"
+        elif robot.state == "help_request":
+            robot.send("help_request", goal_x=robot.goal_x, goal_y=robot.goal_y)
+            robot.state = "help_request_sent"
         log_robot_changes(robot, "send")
 
 

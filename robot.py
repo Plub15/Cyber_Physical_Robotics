@@ -62,6 +62,8 @@ class robot:
 
         #initialize delay
         r = 0
+
+        self.message_value += 1
         payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "delay": r}
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
@@ -77,7 +79,6 @@ class robot:
             self.logger.debug("SEND to=all-others value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["message_value"], message, payload["position"], payload.get("goal"), self.state,
                               payload.get("distance_to_goal"), payload.get("helper_robot_id"))
-        self.message_value += 1
 
     def receive(self,payload):
         if not self.inbox:
@@ -86,13 +87,18 @@ class robot:
         if payload["delay"] > 0:
             payload["delay"] -= 1
             return None
+
+        if payload["message_value"] < self.message_value:
+            self.inbox.remove(payload)
+            return None
+        
         self.inbox.remove(payload)
         if self.logger is not None:
             self.logger.debug("RECEIVE from=%s value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["from"], payload["message_value"], payload["message"],
                               payload["position"], payload.get("goal"), self.state,
                               payload.get("distance_to_goal"), payload.get("helper_robot_id"))
-        self.message_value = max(self.message_value, payload["message_value"] + 1)
+        self.message_value = payload["message_value"]
         return payload
 
     def sense(self, world):
