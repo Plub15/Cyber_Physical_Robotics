@@ -18,7 +18,6 @@ class robot:
         self.world = None
         self.readyToPick = False
         self.foundTargetAhead = False
-        self.foundTargetCurrent = False
         self.foundRobotAhead = False
         self.NumfoundRobotCurrent = 0
         self.RobotIDsInCurrentBlock = []
@@ -121,11 +120,6 @@ class robot:
         # Sense the position of the robot
         current_block = world.get_block(self.x, self.y)
         if current_block is not None:
-            if len(current_block.targets) > 0:
-                # print(f"Robot {self.id}: Target is on the robot.")
-                self.foundTargetCurrent = True
-            else:
-                self.foundTargetCurrent = False
             if len(current_block.robots) > 0:
                 self.NumfoundRobotCurrent = len(current_block.robots)
                 for other_robot in current_block.robots:
