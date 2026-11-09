@@ -45,6 +45,8 @@ class robot:
         self.proposal_ballot = None
         self.promised_ballot = (0, -1)
         self.response_ballot = None
+        self.promise_voters = set()
+        self.acceptance_voters = set()
 
     def forward(self, *, validated=False):
         """Move forward, optionally using approval from the iteration's rule phase."""

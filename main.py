@@ -263,6 +263,9 @@ def perform_actions(world, approved_actions):
 def run_iteration(world, iteration):
     """Receive, sense/decide, validate, act, then send for one iteration."""
 
+    acceptor_ids = set(world.robots)
+    quorum = len(acceptor_ids) // 2 + 1
+
     for current_robot in world.robots.values():
         current_robot.iteration = iteration
 
@@ -292,34 +295,39 @@ def run_iteration(world, iteration):
             #Paxos
             # Proposer; Only "Found Target" robot
             elif robot.state == "PREPARED":
-                if robot.promise < 0.5*(RANDOM_ROBOTS): #Less than majority of robot
-                    if payload["message"] == "PROMISE" and payload["ResponseID"] == robot.id and payload.get("ballot") == robot.proposal_ballot:
-                        robot.promise += 1
+                if (
+                    payload["message"] == "PROMISE"
+                    and payload["ResponseID"] == robot.id
+                    and payload.get("ballot") == robot.proposal_ballot
+                    and payload["from"] in acceptor_ids
+                ):
+                    sender_id = payload["from"]
+
+                    if sender_id not in robot.promise_voters:
+                        robot.promise_voters.add(sender_id)
+                        robot.promise = len(robot.promise_voters)
+
+                        # Preserve your existing history handling for now.
+                        # This still needs the separate highest-accepted-ballot fix.
                         if payload["prevCommand"] is not None:
                             robot.commandHeard = payload["prevCommand"]
-                    robot.patience_counter -= 1
-                else:
-                    robot.state = "ACCEPT_REQUEST"
-                    robot.accepter = 0
-                if robot.patience_counter <= 0:
-                    # Try again with higher message_value if no helper robot is found within the patience limit.
-                    robot.state = "wait_for_helper"
-                    robot.patience_counter = 10 # Reset
-                    robot.message_value = max(robot.message_value, robot.highestMessageValueHeard)
+
+                    if len(robot.promise_voters) >= quorum:
+                        robot.state = "ACCEPT_REQUEST"
+                        robot.patience_counter = 10
 
             elif robot.state == "ACCEPT_REQUESTED":
-                if robot.accepter < 0.5*(RANDOM_ROBOTS): #Less than majority of robot
-                    if payload["message"] == "ACCEPT" and payload["ResponseID"] == robot.id and payload.get("ballot") == robot.proposal_ballot:
-                        robot.accepter += 1
-                    robot.patience_counter -= 1
-                else:
-                    robot.state = "COMMANDER"
+                if (
+                    payload["message"] == "ACCEPT"
+                    and payload["ResponseID"] == robot.id
+                    and payload.get("ballot") == robot.proposal_ballot
+                    and payload["from"] in acceptor_ids
+                ):
+                    robot.acceptance_voters.add(payload["from"])
+                    robot.accepter = len(robot.acceptance_voters)
 
-                if robot.patience_counter <= 0:
-                    # Try again with higher message_value if no helper robot is found within the patience limit.
-                    robot.state = "wait_for_helper"
-                    robot.patience_counter = 10 # Reset
-                    robot.message_value = max(robot.message_value, robot.highestMessageValueHeard)
+                    if len(robot.acceptance_voters) >= quorum:
+                        robot.state = "COMMANDER"
 
             elif robot.state == "wait_for_assignment":
                 if payload["message"] == "EXECUTE":
@@ -334,8 +342,6 @@ def run_iteration(world, iteration):
                         robot.prevCommand = None
                         robot.ResponseID = None
                         robot.commandHeard = None
-
-
             # Incoming promises never change this robot's outgoing proposal ballot.
             incoming_ballot = payload.get("ballot")
             if incoming_ballot is not None:
@@ -352,6 +358,13 @@ def run_iteration(world, iteration):
                 else:
                     robot.response = "ACCEPT"
                     robot.command = payload["Command"]
+
+        if robot.state in ("PREPARED", "ACCEPT_REQUESTED"):
+            robot.patience_counter -= 1
+            if robot.patience_counter <= 0:
+                robot.state = "wait_for_helper"
+                robot.patience_counter = 10
+                
 
             log_robot_changes(robot, "receive")
         log_robot_changes(robot, "communication")
@@ -430,6 +443,9 @@ def run_iteration(world, iteration):
                 robot.message_value = max(robot.message_value, robot.highestMessageValueHeard, robot.promised_ballot[0]) + 1
                 robot.promise = 0
                 robot.proposal_ballot = (robot.message_value, robot.id)
+                robot.promise_voters.clear()
+                robot.acceptance_voters.clear()
+                robot.patience_counter = 10
                 robot.send("PREPARE", ballot=robot.proposal_ballot)
                 robot.state = "PREPARED"
             elif robot.state == "ACCEPT_REQUEST":
@@ -438,6 +454,7 @@ def run_iteration(world, iteration):
                 else:
                     command = (robot.helper_robot_id, robot.x, robot.y)
                 robot.command = command
+                robot.patience_counter = 10
                 robot.send("ACCEPT_REQUEST", goal_x=robot.goal_x, goal_y=robot.goal_y, task_id=robot.task_id, Command=command, ballot=robot.proposal_ballot)
                 robot.state = "ACCEPT_REQUESTED"
             elif robot.state == "COMMANDER":
