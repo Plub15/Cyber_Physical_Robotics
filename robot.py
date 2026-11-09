@@ -23,16 +23,25 @@ class robot:
         self.RobotIDsInCurrentBlock = []
         self.inbox = []
         self.logger = None
+        self.message_trace = None  # Optional observer; never changes delivery behavior.
         self.iteration = 0  # Initialization; simulation iterations start at 1.
         self.message_value = 0
         self.goal_x = None
         self.goal_y = None
         self.state = "searching"  # Initial state of the robot
         self.distance_to_goal_value = float("inf")  # Initialize distance to goal as infinity
-        self.patience_counter = 20  # Counter to track how long the robot has been waiting for help
+        self.patience_counter = 10
         self.helper_robot_id = None  # ID of the robot that is helping this robot
         self.helper_robot_distance = float("inf")  # Distance to the helper robot
+        self.task_id = None  # ID of the task the robot is currently working on
         self.promise = 0
+        self.accepter = 0
+        self.response = None
+        self.ResponseID = None
+        self.command = set()
+        self.prevCommand = None
+        self.highestMessageValueHeard = 0  # Track the highest message value heard by the robot
+        self.commandHeard = None  # Track the command heard by the robot
 
     def forward(self, *, validated=False):
         """Move forward, optionally using approval from the iteration's rule phase."""
@@ -58,13 +67,12 @@ class robot:
         self.readyToPick = True
         pass
 
-    def send(self, message, goal_x=None, goal_y=None, delay=True, max_delay=5):
+    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5):
 
         #initialize delay
         r = 0
 
-        self.message_value += 1
-        payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "delay": r}
+        payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "goal": None, "distance_to_goal": float("inf"), "helper_robot_id": None, "task_id": task_id, "Command": Command, "prevCommand": prevCommand, "ResponseID": ResponseID, "delay": r}
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
             payload["distance_to_goal"] = self.distance_to_goal_value
@@ -72,9 +80,19 @@ class robot:
             payload["helper_robot_id"] = self.helper_robot_id
         for recipient in self.world.robots.values():
             if delay:
-                payload["delay"] = np.random.randint(1, max_delay)
+                payload["delay"] = np.random.randint(0, max_delay)
             if recipient.id != self.id:
-                recipient.inbox.append(payload.copy())
+                delivery = payload.copy()
+                recipient.inbox.append(delivery)
+                if self.message_trace is not None:
+                    self.message_trace.sent(self, recipient, delivery)
+            else:
+                # Send to self
+                payload["delay"] = 0  # No delay for self-delivery
+                delivery = payload.copy()
+                recipient.inbox.append(delivery)
+                if self.message_trace is not None:
+                    self.message_trace.sent(self, recipient, delivery)
         if self.logger is not None:
             self.logger.debug("SEND to=all-others value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["message_value"], message, payload["position"], payload.get("goal"), self.state,
@@ -87,18 +105,15 @@ class robot:
         if payload["delay"] > 0:
             payload["delay"] -= 1
             return None
-
-        if payload["message_value"] < self.message_value:
-            self.inbox.remove(payload)
-            return None
-        
+      
         self.inbox.remove(payload)
+        if self.message_trace is not None:
+            self.message_trace.arrived(self, payload)
         if self.logger is not None:
             self.logger.debug("RECEIVE from=%s value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["from"], payload["message_value"], payload["message"],
                               payload["position"], payload.get("goal"), self.state,
                               payload.get("distance_to_goal"), payload.get("helper_robot_id"))
-        self.message_value = payload["message_value"]
         return payload
 
     def sense(self, world):
