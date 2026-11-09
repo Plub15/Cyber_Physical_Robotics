@@ -340,11 +340,11 @@ def run_iteration(world, iteration):
             if payload["message"] == "PREPARE":
                 if payload["message_value"] < robot.message_value:
                     continue # Ignore
-                if payload["message_value"] == robot.message_value:
-                    if payload["from"] < robot.ResponseID:
-                        continue # Ignore
+                elif payload["message_value"] == robot.message_value and payload["from"] < robot.ballot[1]:
+                    continue # Ignore
                 else:
                     # Robot will promise if the message_value is greater than or equal to its own message_value and the Sender's ID is greater than other senders with the same message_value
+                    robot.ballot = (payload["message_value"], payload["from"])
                     robot.message_value = payload["message_value"]
                     robot.response = "PROMISE"
                     robot.ResponseID = payload["from"]
@@ -352,7 +352,11 @@ def run_iteration(world, iteration):
             if payload["message"] == "ACCEPT_REQUEST":
                 if payload["message_value"] < robot.message_value:
                     continue # Ignore
+                elif payload["message_value"] == robot.message_value and payload["from"] < robot.ballot[1]:
+                    continue # Ignore
                 else:
+                    # Robot will accept if the message_value is greater than or equal to its own message_value and the Sender's ID is greater than other senders with the same message_value
+                    robot.ballot = (payload["message_value"], payload["from"])
                     robot.message_value = payload["message_value"]
                     robot.response = "ACCEPT"
                     robot.ResponseID = payload["from"]
@@ -440,6 +444,7 @@ def run_iteration(world, iteration):
                 robot.message_value += 1
                 robot.promise = 0
                 robot.send("PREPARE")
+                robot.ballot = (robot.message_value, robot.id)
                 robot.state = "PREPARED"
             elif robot.state == "ACCEPT_REQUEST":
                 if robot.commandHeard is not None:

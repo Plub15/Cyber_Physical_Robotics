@@ -42,6 +42,7 @@ class robot:
         self.prevCommand = None
         self.highestMessageValueHeard = 0  # Track the highest message value heard by the robot
         self.commandHeard = None  # Track the command heard by the robot
+        self.ballot = (self.message_value, -1)  # Initialize the ballot with the robot's message value and negative ID to ensure it is the lowest possible ballot initially
 
     def forward(self, *, validated=False):
         """Move forward, optionally using approval from the iteration's rule phase."""
