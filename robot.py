@@ -42,7 +42,9 @@ class robot:
         self.prevCommand = None
         self.highestMessageValueHeard = 0  # Track the highest message value heard by the robot
         self.commandHeard = None  # Track the command heard by the robot
-        self.ballot = (self.message_value, -1)  # Initialize the ballot with the robot's message value and negative ID to ensure it is the lowest possible ballot initially
+        self.proposal_ballot = None
+        self.promised_ballot = (0, -1)
+        self.response_ballot = None
 
     def forward(self, *, validated=False):
         """Move forward, optionally using approval from the iteration's rule phase."""
@@ -68,12 +70,15 @@ class robot:
         self.readyToPick = True
         pass
 
-    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5):
+    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5, ballot=None):
 
         #initialize delay
         r = 0
 
         payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "goal": None, "distance_to_goal": float("inf"), "helper_robot_id": None, "task_id": task_id, "Command": Command, "prevCommand": prevCommand, "ResponseID": ResponseID, "delay": r}
+        payload["ballot"] = ballot
+        if ballot is not None:
+            payload["message_value"] = ballot[0]
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
             payload["distance_to_goal"] = self.distance_to_goal_value
