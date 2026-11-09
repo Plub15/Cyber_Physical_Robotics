@@ -476,15 +476,7 @@ def main():
 
         plt.ion()
         # Add robots to `world`
-        # add_random_robots(world, RANDOM_ROBOTS)
-        robot1 = robot(2, 2, 0)  # Robot at (2, 2) facing East
-        robot2 = robot(2, 7, 0)  # Robot at (2, 7) facing East
-        robot3 = robot(7, 2, 0)  # Robot at (7, 2) facing East
-        target1 = target(8, 2)  # Target at (8, 2)
-        robot_for_test = [robot1, robot2, robot3]
-        for r in robot_for_test:
-            world.add_robot(r)
-        world.add_target(target1)
+        add_random_robots(world, RANDOM_ROBOTS)
 
         log_directory = configure_robot_logs(world.robots.values())
         print(f"Robot logs: {log_directory}")
