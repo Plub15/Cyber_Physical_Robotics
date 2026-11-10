@@ -16,7 +16,7 @@ FRAME_DELAY_SECONDS = 0.01
 
 ITERATIONS = 20000
 RANDOM_ROBOTS = 4
-RANDOM_TARGETS = 4
+RANDOM_TARGETS = 40
 
 PROMISE_THRESHOLD = 2  # Number of promises required for a robot to consider another robot as a helper
 
@@ -272,6 +272,26 @@ def run_iteration(world, iteration):
         for payload in robot.inbox[:]:
             if robot.receive(payload) is None:
                 continue
+
+            task_id = payload.get("task_id")
+
+            if payload["message"] == "CANCEL_TASK":
+                # Only the requester can cancel its recruitment attempt.
+                if task_id is not None and payload["from"] == task_id[0]:
+                    robot.cancelled_tasks.add(task_id)
+
+                    if (robot.task_id == task_id and robot.state in ("volunteer", "wait_for_assignment")):
+                        robot.task_id = None
+                        robot.goal_x, robot.goal_y = None, None
+                        robot.command = set()
+                        robot.state = "searching"
+
+                continue
+
+            # Cancellation may arrive before an older help request.
+            if (payload["message"] == "Need_help" and task_id in robot.cancelled_tasks):
+                continue
+
             if robot.state == "searching":
                 if payload["message"] == "Need_help" and payload["from"] != robot.id:
                     robot.state = "volunteer"
@@ -282,6 +302,21 @@ def run_iteration(world, iteration):
                     if payload["distance_to_goal"] < robot.helper_robot_distance:
                         robot.helper_robot_id = payload["from"]
                         robot.helper_robot_distance = payload.get("distance_to_goal")
+
+                elif (payload["message"] == "Need_help" and payload["from"] < robot.id and robot.helper_robot_id is None):
+                    old_task_id = robot.task_id
+                    robot.cancelled_tasks.add(old_task_id)
+                    robot.outbox.append({
+                        "message": "CANCEL_TASK",
+                        "task_id": old_task_id,
+                    })
+
+                    # Immediately volunteer for the lower-ID requester.
+                    robot.task_id = payload["task_id"]
+                    robot.goal_x, robot.goal_y = payload["goal"]
+                    robot.helper_robot_id = None
+                    robot.helper_robot_distance = float("inf")
+                    robot.state = "volunteer"
 
             #Paxos
             # Proposer; Only "Found Target" robot
