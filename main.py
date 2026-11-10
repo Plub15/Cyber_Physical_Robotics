@@ -273,7 +273,7 @@ def run_iteration(world, iteration):
             if robot.receive(payload) is None:
                 continue
             if robot.state == "searching":
-                if payload["message"] == "Need_help":
+                if payload["message"] == "Need_help" and payload["from"] != robot.id:
                     robot.state = "volunteer"
                     robot.task_id = payload["task_id"]
                     robot.goal_x, robot.goal_y = payload["goal"]
