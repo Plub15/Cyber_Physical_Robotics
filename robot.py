@@ -49,6 +49,11 @@ class robot:
         self.highest_accepted_ballot = None
         self.promise_voters = set()
         self.acceptance_voters = set()
+        self.task_counter = 0
+        self.consensus_by_task = {}
+        self.proposal_task_id = None
+        self.proposal_value = None
+        self.outbox = []
 
     def forward(self, *, validated=False):
         """Move forward, optionally using approval from the iteration's rule phase."""
@@ -73,6 +78,24 @@ class robot:
     def pickUp(self):
         self.readyToPick = True
         pass
+
+    def new_task(self):
+        self.task_counter += 1
+        self.task_id = (self.id, self.task_counter)
+        return self.task_id
+    
+    def consensus_for(self, task_id):
+        if task_id is None:
+            raise ValueError("Paxos messages require a task_id")
+    
+        if task_id not in self.consensus_by_task:
+            self.consensus_by_task[task_id] = {
+                "promised_ballot": (0, -1),
+                "accepted_ballot": None,
+                "accepted_value": None,
+            }
+    
+        return self.consensus_by_task[task_id]
 
     def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5, ballot=None, accepted_ballot=None, accepted_value=None):
 
