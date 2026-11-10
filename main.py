@@ -1,12 +1,10 @@
 import argparse
-import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Polygon, Rectangle
 
 from map import map as Map
-from message_debugger import MessageDebugger, MessageTrace
 from robot import robot
 from robot_logging import configure_robot_logs, close_robot_logs, open_log_viewers, log_robot_changes
 from rules import check_illegal_behavior
@@ -14,11 +12,11 @@ from target import can_pick_up, target
 
 MAP_WIDTH = 10
 MAP_HEIGHT = 10
-FRAME_DELAY_SECONDS = 1
+FRAME_DELAY_SECONDS = 0.03
 
 ITERATIONS = 20000
 RANDOM_ROBOTS = 4
-RANDOM_TARGETS = 1
+RANDOM_TARGETS = 10
 
 PROMISE_THRESHOLD = 2  # Number of promises required for a robot to consider another robot as a helper
 
@@ -342,11 +340,13 @@ def run_iteration(world, iteration):
                         robot.prevCommand = None
                         robot.ResponseID = None
                         robot.commandHeard = None
+                        
             # Incoming promises never change this robot's outgoing proposal ballot.
             incoming_ballot = payload.get("ballot")
             if incoming_ballot is not None:
                 robot.highestMessageValueHeard = max(
                     robot.highestMessageValueHeard, incoming_ballot[0])
+                
             if payload["message"] in ("PREPARE", "ACCEPT_REQUEST"):
                 if incoming_ballot is None or incoming_ballot < robot.promised_ballot:
                     continue
@@ -479,7 +479,6 @@ def run_iteration(world, iteration):
 def main():
     parser = argparse.ArgumentParser(description="Run the robot simulation.")
     parser.add_argument("--debug-panes", action="store_true", help="Open a live log pane for each robot.")
-    parser.add_argument("--no-debugger", action="store_true", help="Show only the map, without the message debugger.")
     parser.add_argument("--iterations", type=int, default=ITERATIONS, help="Number of simulation iterations.")
     parser.add_argument("--seed", type=int, help="Random seed for repeatable movement and message delays.")
     args = parser.parse_args()
@@ -499,41 +498,16 @@ def main():
         print(f"Robot logs: {log_directory}")
         if args.debug_panes:
             open_log_viewers(log_directory)
-        debugger = None
-        if args.no_debugger:
-            fig, ax = _show_frame(world)
-        else:
-            trace = MessageTrace()
-            trace.attach(world.robots.values())
-            debugger = MessageDebugger(world, trace, draw_map, FRAME_DELAY_SECONDS)
-            debugger.update(0)
-            fig = debugger.fig
-            plt.show(block=False)
+        fig, ax = _show_frame(world)
 
         i = 0
-        last_step = time.monotonic() - FRAME_DELAY_SECONDS
-        while plt.fignum_exists(fig.number):
-            if debugger is not None:
-                fig.canvas.start_event_loop(0.05)
-                if debugger.closed:
-                    break
-                if not debugger.steps and time.monotonic() - last_step < debugger.interval:
-                    continue
-                if not debugger.ready():
-                    continue
-            elif i >= args.iterations:
-                break
+        while plt.fignum_exists(fig.number) and i < args.iterations:
             if not any(block.targets for row in world.blocks for block in row):
                 add_random_targets(world, RANDOM_TARGETS)
             run_iteration(world, i + 1)
             # Render after every robot has performed its action and sent messages.
             i += 1
-            last_step = time.monotonic()
-            if debugger is not None:
-                debugger.finished = i >= args.iterations
-                debugger.update(i)
-            else:
-                _show_frame(world, ax=ax)
+            _show_frame(world, ax=ax)
 
             print(
                 f"\r[Iteration: {i}/{args.iterations}] [Score: {world.score}]",

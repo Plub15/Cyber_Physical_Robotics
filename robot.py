@@ -23,7 +23,6 @@ class robot:
         self.RobotIDsInCurrentBlock = []
         self.inbox = []
         self.logger = None
-        self.message_trace = None  # Optional observer; never changes delivery behavior.
         self.iteration = 0  # Initialization; simulation iterations start at 1.
         self.message_value = 0
         self.goal_x = None
@@ -92,15 +91,11 @@ class robot:
             if recipient.id != self.id:
                 delivery = payload.copy()
                 recipient.inbox.append(delivery)
-                if self.message_trace is not None:
-                    self.message_trace.sent(self, recipient, delivery)
             else:
                 # Send to self
                 payload["delay"] = 0  # No delay for self-delivery
                 delivery = payload.copy()
                 recipient.inbox.append(delivery)
-                if self.message_trace is not None:
-                    self.message_trace.sent(self, recipient, delivery)
         if self.logger is not None:
             self.logger.debug("SEND to=all-others value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["message_value"], message, payload["position"], payload.get("goal"), self.state,
@@ -115,8 +110,6 @@ class robot:
             return None
       
         self.inbox.remove(payload)
-        if self.message_trace is not None:
-            self.message_trace.arrived(self, payload)
         if self.logger is not None:
             self.logger.debug("RECEIVE from=%s value=%s message=%r position=%s goal=%s state=%s distance_to_goal=%s helper_robot_id=%s",
                               payload["from"], payload["message_value"], payload["message"],
