@@ -357,7 +357,7 @@ def run_iteration(world, iteration):
                 task_id = payload.get("task_id")
                 ballot = payload.get("ballot")
 
-                if task_id is None and ballot is None:
+                if task_id is None or ballot is None:
                     continue
 
                 record = robot.consensus_for(task_id)
@@ -371,25 +371,23 @@ def run_iteration(world, iteration):
                     if (record["accepted_ballot"] == ballot and record["accepted_value"] != value):
                         continue
 
-                record["accepted_ballot"] = ballot
-                record["accepted_value"] = value
-                response = "ACCEPT"
-            else:
-                response = "PROMISE"
+                    record["accepted_ballot"] = ballot
+                    record["accepted_value"] = value
+                    response = "ACCEPT"
+                else:
+                    response = "PROMISE"
 
-            record["promised_ballot"] = ballot
+                record["promised_ballot"] = ballot
 
-            robot.outbox.append({
-                "message": response,
-                "task_id": task_id,
-                "ResponseID": payload["from"],
-                "ballot": ballot,
-                "accepted_ballot": record["accepted_ballot"],
-                "accepted_value": record["accepted_value"],
-            })
-
-
-                    
+                # Capture each reply now, before another request changes history.
+                robot.outbox.append({
+                    "message": response,
+                    "task_id": task_id,
+                    "ResponseID": payload["from"],
+                    "ballot": ballot,
+                    "accepted_ballot": record["accepted_ballot"],
+                    "accepted_value": record["accepted_value"],
+                })
 
         if robot.state in ("PREPARED", "ACCEPT_REQUESTED"):
             robot.patience_counter -= 1
@@ -467,55 +465,51 @@ def run_iteration(world, iteration):
 
     for robot in world.robots.values():
         # Robot communication handling (sending messages)
-        if robot.response == None:
-            if robot.state == "needs_help":
-                robot.send("Need_help", goal_x=robot.x, goal_y=robot.y, task_id=robot.task_id)
-            elif robot.state == "volunteer":
-                robot.send("Help_offer", goal_x=robot.goal_x, goal_y=robot.goal_y, task_id=robot.task_id)
-                robot.state = "wait_for_assignment"
-            elif robot.state == "wait_for_helper":
-                robot.proposal_task_id = robot.task_id
-                record = robot.consensus_for(robot.proposal_task_id)
+        if robot.state == "needs_help":
+            robot.send("Need_help", goal_x=robot.x, goal_y=robot.y, task_id=robot.task_id)
+        elif robot.state == "volunteer":
+            robot.send("Help_offer", goal_x=robot.goal_x, goal_y=robot.goal_y, task_id=robot.task_id)
+            robot.state = "wait_for_assignment"
+        elif robot.state == "wait_for_helper":
+            robot.proposal_task_id = robot.task_id
+            record = robot.consensus_for(robot.proposal_task_id)
 
-                robot.message_value = max(robot.message_value, robot.highestMessageValueHeard, robot.promised_ballot[0]) + 1
+            robot.message_value = max(robot.message_value, robot.highestMessageValueHeard, record["promised_ballot"][0]) + 1
+            robot.proposal_ballot = (robot.message_value, robot.id)
 
-                robot.promise_voters.clear()
-                robot.acceptance_voters.clear()
-                robot.promise = 0
-                robot.accepter = 0
-                robot.highest_accepted_ballot = None
-                robot.commandHeard = None
-                robot.proposal_value = None
-                robot.patience_counter = 10
+            robot.promise_voters.clear()
+            robot.acceptance_voters.clear()
+            robot.promise = 0
+            robot.accepter = 0
+            robot.highest_accepted_ballot = None
+            robot.commandHeard = None
+            robot.proposal_value = None
+            robot.patience_counter = 10
 
-                robot.send("PREPARE", ballot=robot.proposal_ballot, task_id=robot.proposal_task_id, ballot=robot.proposal_ballot)
-                robot.state = "PREPARED"
-            elif robot.state == "ACCEPT_REQUEST":
-                robot.proposal_value = (
-                    robot.commandHeard
-                    if robot.commandHeard is not None
-                    else (robot.helper_robot_id, robot.x, robot.y)
-                )
+            robot.send("PREPARE", task_id=robot.proposal_task_id, ballot=robot.proposal_ballot)
+            robot.state = "PREPARED"
+        elif robot.state == "ACCEPT_REQUEST":
+            robot.proposal_value = (
+                robot.commandHeard
+                if robot.commandHeard is not None
+                else (robot.helper_robot_id, robot.x, robot.y)
+            )
 
-                robot.send("ACCEPT_REQUEST", task_id=robot.proposal_task_id, ballot=robot.proposal_ballot, Command=robot.proposal_value)
+            robot.send("ACCEPT_REQUEST", task_id=robot.proposal_task_id, ballot=robot.proposal_ballot, Command=robot.proposal_value)
 
-                robot.patience_counter = 10
-                robot.state = "ACCEPT_REQUESTED"
-            elif robot.state == "COMMANDER":
-                robot.send("EXECUTE")
-                if robot.commandHeard is not None:
-                    robot.state = "wait_for_helper" # Retry again for it own command
-                else:
-                    robot.state = "wait_for_pickup" # Wait for pickup
+            robot.patience_counter = 10
+            robot.state = "ACCEPT_REQUESTED"
+        elif robot.state == "COMMANDER":
+            robot.send("EXECUTE")
+            if robot.commandHeard is not None:
+                robot.state = "wait_for_helper" # Retry again for it own command
+            else:
+                robot.state = "wait_for_pickup" # Wait for pickup
 
-        # Acceptor; All robot is acceptor
-        else:
-            if robot.response == "PROMISE":
-                robot.send("PROMISE", ResponseID=robot.ResponseID, ballot=robot.response_ballot , accepted_ballot=robot.accepted_ballot, accepted_value=robot.accepted_value)
-            elif robot.response == "ACCEPT":
-                robot.send("ACCEPT", ResponseID=robot.ResponseID, ballot=robot.response_ballot, accepted_ballot=robot.accepted_ballot, accepted_value=robot.accepted_value)
-
-            robot.response = None
+        # Acceptor replies are independent of this robot's proposer state.
+        for reply in robot.outbox:
+            robot.send(**reply)
+        robot.outbox.clear()
         log_robot_changes(robot, "send")
 
 
