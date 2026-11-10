@@ -12,11 +12,11 @@ from target import can_pick_up, target
 
 MAP_WIDTH = 10
 MAP_HEIGHT = 10
-FRAME_DELAY_SECONDS = 0.03
+FRAME_DELAY_SECONDS = 0.01
 
 ITERATIONS = 20000
 RANDOM_ROBOTS = 4
-RANDOM_TARGETS = 10
+RANDOM_TARGETS = 4
 
 PROMISE_THRESHOLD = 2  # Number of promises required for a robot to consider another robot as a helper
 
@@ -282,13 +282,6 @@ def run_iteration(world, iteration):
                     if payload["distance_to_goal"] < robot.helper_robot_distance:
                         robot.helper_robot_id = payload["from"]
                         robot.helper_robot_distance = payload.get("distance_to_goal")
-                robot.patience_counter -= 1
-                if robot.patience_counter <= 0:
-                    if robot.helper_robot_id is not None:
-                        robot.state = "wait_for_helper"
-                        robot.patience_counter = 10 # Reset
-                    else:
-                        robot.state = "searching"
 
             #Paxos
             # Proposer; Only "Found Target" robot
@@ -393,8 +386,16 @@ def run_iteration(world, iteration):
                     "accepted_ballot": record["accepted_ballot"],
                     "accepted_value": record["accepted_value"],
                 })
+        if robot.state == "needs_help":
+            robot.patience_counter -= 1
 
-        if robot.state in ("PREPARED", "ACCEPT_REQUESTED"):
+            if robot.patience_counter <= 0:
+                robot.patience_counter = 10
+
+                if robot.helper_robot_id is not None:
+                    robot.state = "wait_for_helper"
+
+        elif robot.state in ("PREPARED", "ACCEPT_REQUESTED"):
             robot.patience_counter -= 1
             if robot.patience_counter <= 0:
                 robot.state = "wait_for_helper"
