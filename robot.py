@@ -44,6 +44,9 @@ class robot:
         self.proposal_ballot = None
         self.promised_ballot = (0, -1)
         self.response_ballot = None
+        self.accepted_ballot = None
+        self.accepted_value = None
+        self.highest_accepted_ballot = None
         self.promise_voters = set()
         self.acceptance_voters = set()
 
@@ -71,7 +74,7 @@ class robot:
         self.readyToPick = True
         pass
 
-    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5, ballot=None):
+    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5, ballot=None, accepted_ballot=None, accepted_value=None):
 
         #initialize delay
         r = 0
@@ -80,6 +83,9 @@ class robot:
         payload["ballot"] = ballot
         if ballot is not None:
             payload["message_value"] = ballot[0]
+        payload["accepted_ballot"] = accepted_ballot
+        if accepted_ballot is not None:
+            payload["accepted_value"] = accepted_value
         if goal_x is not None and goal_y is not None:
             payload["goal"] = (goal_x, goal_y)
             payload["distance_to_goal"] = self.distance_to_goal_value

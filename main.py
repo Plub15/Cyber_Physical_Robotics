@@ -305,10 +305,13 @@ def run_iteration(world, iteration):
                         robot.promise_voters.add(sender_id)
                         robot.promise = len(robot.promise_voters)
 
-                        # Preserve your existing history handling for now.
-                        # This still needs the separate highest-accepted-ballot fix.
-                        if payload["prevCommand"] is not None:
-                            robot.commandHeard = payload["prevCommand"]
+                        reported_ballot = payload.get("accepted_ballot")
+                        reported_value = payload.get("accepted_value")
+
+                        if reported_ballot is not None:
+                            if (robot.highest_accepted_ballot is None or reported_ballot > robot.highest_accepted_ballot):
+                                robot.highest_accepted_ballot = reported_ballot
+                                robot.commandHeard = reported_value
 
                     if len(robot.promise_voters) >= quorum:
                         robot.state = "ACCEPT_REQUEST"
@@ -348,16 +351,29 @@ def run_iteration(world, iteration):
                     robot.highestMessageValueHeard, incoming_ballot[0])
                 
             if payload["message"] in ("PREPARE", "ACCEPT_REQUEST"):
-                if incoming_ballot is None or incoming_ballot < robot.promised_ballot:
+                incoming_ballot = payload.get("ballot")
+
+                if (incoming_ballot is None or incoming_ballot < robot.promised_ballot):
                     continue
+
+                if payload["message"] == "ACCEPT_REQUEST":
+                    incoming_value = payload["Command"]
+
+                    if (robot.accepted_ballot == incoming_ballot and robot.accepted_value != incoming_value):
+                        continue
+
+                    robot.accepted_ballot = incoming_ballot
+                    robot.accepted_value = incoming_value
+                    robot.command = incoming_value
+                    robot.response = "ACCEPT"
+                else:
+                    robot.response = "PROMISE"
+
                 robot.promised_ballot = incoming_ballot
                 robot.response_ballot = incoming_ballot
                 robot.ResponseID = payload["from"]
-                if payload["message"] == "PREPARE":
-                    robot.response = "PROMISE"
-                else:
-                    robot.response = "ACCEPT"
-                    robot.command = payload["Command"]
+
+                    
 
         if robot.state in ("PREPARED", "ACCEPT_REQUESTED"):
             robot.patience_counter -= 1
@@ -445,6 +461,8 @@ def run_iteration(world, iteration):
                 robot.proposal_ballot = (robot.message_value, robot.id)
                 robot.promise_voters.clear()
                 robot.acceptance_voters.clear()
+                robot.highest_accepted_ballot = None
+                robot.commandHeard = None
                 robot.patience_counter = 10
                 robot.send("PREPARE", ballot=robot.proposal_ballot)
                 robot.state = "PREPARED"
@@ -467,10 +485,9 @@ def run_iteration(world, iteration):
         # Acceptor; All robot is acceptor
         else:
             if robot.response == "PROMISE":
-                robot.send("PROMISE", prevCommand=robot.prevCommand, ResponseID=robot.ResponseID, ballot=robot.response_ballot)
+                robot.send("PROMISE", ResponseID=robot.ResponseID, ballot=robot.response_ballot , accepted_ballot=robot.accepted_ballot, accepted_value=robot.accepted_value)
             elif robot.response == "ACCEPT":
-                robot.send("ACCEPT", ResponseID=robot.ResponseID, ballot=robot.response_ballot)
-                robot.prevCommand = robot.command
+                robot.send("ACCEPT", ResponseID=robot.ResponseID, ballot=robot.response_ballot, accepted_ballot=robot.accepted_ballot, accepted_value=robot.accepted_value)
 
             robot.response = None
         log_robot_changes(robot, "send")
