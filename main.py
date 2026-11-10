@@ -334,13 +334,18 @@ def run_iteration(world, iteration):
                         robot.state = "COMMANDER"
 
             elif robot.state == "wait_for_assignment":
-                if payload["message"] == "EXECUTE":
-                    if robot.id == robot.command[0]:
-                        robot.goal_x, robot.goal_y = robot.command[1], robot.command[2]
+                if payload["message"] == "EXECUTE" and payload.get("task_id") == robot.task_id:
+                    command = payload.get("Command")
+
+                    command = payload["Command"]
+
+                    if robot.id == command[0]:
+                        robot.command = command
+                        robot.goal_x, robot.goal_y = command[1], command[2]
                         robot.state = "move_to_goal"
                     else:
-                        #Release
                         robot.state = "searching"
+                        robot.task_id = None
                         robot.goal_x, robot.goal_y = None, None
                         robot.command = set()
                         robot.prevCommand = None
@@ -417,7 +422,7 @@ def run_iteration(world, iteration):
         elif current_robot.state == "found_target":
             if current_robot.NumfoundRobotCurrent == 2:
                 action = "pick_up"
-                robot.state = "searching"
+                current_robot.state = "searching"
             elif current_robot.NumfoundRobotCurrent == 1:
                 current_robot.goal_x, current_robot.goal_y = current_robot.x, current_robot.y
                 current_robot.state = "needs_help"
@@ -428,10 +433,10 @@ def run_iteration(world, iteration):
             elif current_robot.NumfoundRobotCurrent > 2:
                 if current_robot.id in current_robot.RobotIDsInCurrentBlock[:2]:
                     action = "pick_up"
-                    robot.state = "searching"
+                    current_robot.state = "searching"
                 else:
                     action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
-                    robot.state = "searching"
+                    current_robot.state = "searching"
 
         elif current_robot.state == "move_to_goal":
             if current_robot.x == current_robot.goal_x and current_robot.y == current_robot.goal_y:
@@ -500,11 +505,11 @@ def run_iteration(world, iteration):
             robot.patience_counter = 10
             robot.state = "ACCEPT_REQUESTED"
         elif robot.state == "COMMANDER":
-            robot.send("EXECUTE")
-            if robot.commandHeard is not None:
-                robot.state = "wait_for_helper" # Retry again for it own command
-            else:
-                robot.state = "wait_for_pickup" # Wait for pickup
+            robot.send("EXECUTE", task_id=robot.proposal_task_id, Command=robot.proposal_value, ballot=robot.proposal_ballot)
+            robot.command = robot.proposal_value
+            robot.helper_robot_id = robot.proposal_value[0]
+            robot.state = "wait_for_pickup"
+            robot.state = "wait_for_pickup" # Wait for pickup
 
         # Acceptor replies are independent of this robot's proposer state.
         for reply in robot.outbox:
