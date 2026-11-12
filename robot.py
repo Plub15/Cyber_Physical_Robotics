@@ -98,7 +98,8 @@ class robot:
     
         return self.consensus_by_task[task_id]
 
-    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5, ballot=None, accepted_ballot=None, accepted_value=None):
+    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, mean_delay=5, ballot=None, accepted_ballot=None, accepted_value=None):
+        """Broadcast with exponential delays whose mean is in simulation iterations."""
 
         #initialize delay
         r = 0
@@ -117,7 +118,7 @@ class robot:
             payload["helper_robot_id"] = self.helper_robot_id
         for recipient in self.world.robots.values():
             if delay:
-                payload["delay"] = np.random.randint(0, max_delay)
+                payload["delay"] = np.random.exponential(scale=mean_delay)
             if recipient.id != self.id:
                 delivery = payload.copy()
                 recipient.inbox.append(delivery)
