@@ -558,6 +558,8 @@ def main():
     parser = argparse.ArgumentParser(description="Run the robot simulation.")
     parser.add_argument("--debug-panes", action="store_true", help="Open a live log pane for each robot.")
     parser.add_argument("--iterations", type=int, default=ITERATIONS, help="Number of simulation iterations.")
+    parser.add_argument("--robots", type=int, default=RANDOM_ROBOTS, help="Number of robots to simulate.")
+    parser.add_argument("--targets", type=int, default=RANDOM_TARGETS, help="Number of targets to simulate.")
     parser.add_argument("--seed", type=int, help="Random seed for repeatable movement and message delays.")
     args = parser.parse_args()
     if args.iterations < 1:
@@ -570,7 +572,7 @@ def main():
 
         plt.ion()
         # Add robots to `world`
-        add_random_robots(world, RANDOM_ROBOTS)
+        add_random_robots(world, args.robots)
 
         log_directory = configure_robot_logs(world.robots.values())
         print(f"Robot logs: {log_directory}")
@@ -581,7 +583,7 @@ def main():
         i = 0
         while plt.fignum_exists(fig.number) and i < args.iterations:
             if not any(block.targets for row in world.blocks for block in row):
-                add_random_targets(world, RANDOM_TARGETS)
+                add_random_targets(world, args.targets)
             run_iteration(world, i + 1)
             # Render after every robot has performed its action and sent messages.
             i += 1
