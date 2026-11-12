@@ -12,11 +12,12 @@ from target import can_pick_up, target
 
 MAP_WIDTH = 10
 MAP_HEIGHT = 10
-FRAME_DELAY_SECONDS = 0.01
+FRAME_DELAY_SECONDS = 0.005
 
 ITERATIONS = 20000
 RANDOM_ROBOTS = 4
 RANDOM_TARGETS = 40
+MAX_DELAY = 3
 
 PROMISE_THRESHOLD = 2  # Number of promises required for a robot to consider another robot as a helper
 
@@ -258,7 +259,7 @@ def perform_actions(world, approved_actions):
         log_robot_changes(current_robot, "pickup")
 
 
-def run_iteration(world, iteration):
+def run_iteration(world, iteration, delay=MAX_DELAY):
     """Receive, sense/decide, validate, act, then send for one iteration."""
 
     acceptor_ids = set(world.robots)
@@ -282,6 +283,7 @@ def run_iteration(world, iteration):
 
                     if (robot.task_id == task_id and robot.state in ("volunteer", "wait_for_assignment")):
                         robot.task_id = None
+                        robot.pickup_schedule = None
                         robot.goal_x, robot.goal_y = None, None
                         robot.command = set()
                         robot.state = "searching"
@@ -296,6 +298,7 @@ def run_iteration(world, iteration):
                 if payload["message"] == "Need_help" and payload["from"] != robot.id:
                     robot.state = "volunteer"
                     robot.task_id = payload["task_id"]
+                    robot.pickup_schedule = None
                     robot.goal_x, robot.goal_y = payload["goal"]
             elif robot.state == "needs_help":
                 if payload["message"] == "Help_offer" and payload.get("task_id") == robot.task_id:
@@ -314,6 +317,7 @@ def run_iteration(world, iteration):
 
                     # Immediately volunteer for the lower-ID requester.
                     robot.task_id = payload["task_id"]
+                    robot.pickup_schedule = None
                     robot.goal_x, robot.goal_y = payload["goal"]
                     robot.helper_robot_id = None
                     robot.helper_robot_distance = float("inf")
@@ -375,11 +379,16 @@ def run_iteration(world, iteration):
                     else:
                         robot.state = "searching"
                         robot.task_id = None
+                        robot.pickup_schedule = None
                         robot.goal_x, robot.goal_y = None, None
                         robot.command = set()
                         robot.prevCommand = None
                         robot.ResponseID = None
                         robot.commandHeard = None
+
+            if payload["message"] == "PICKUP" and payload.get("task_id") == robot.task_id:
+                robot.pickup_schedule = payload.get("pickup_schedule")
+                # robot.state = "pickup_scheduled"
                         
             # Incoming promises never change this robot's outgoing proposal ballot.
             incoming_ballot = payload.get("ballot")
@@ -470,19 +479,19 @@ def run_iteration(world, iteration):
 
         elif current_robot.state == "move_to_goal":
             if current_robot.x == current_robot.goal_x and current_robot.y == current_robot.goal_y:
-                action = "pick_up"
-                #Release
-                current_robot.state = "searching"
-                current_robot.goal_x, current_robot.goal_y = None, None
-                current_robot.command = set()
-                current_robot.prevCommand = None
-                current_robot.ResponseID = None
-                current_robot.commandHeard = None
+                current_robot.state = "pickup_scheduled"
             else:
                 action = move_to_goal(current_robot)
 
         elif current_robot.state == "wait_for_pickup":
             if current_robot.helper_robot_id in current_robot.RobotIDsInCurrentBlock:
+                current_robot.state = "pickup_schedule"
+                current_robot.pickup_schedule = current_robot.iteration + delay
+
+        elif current_robot.state == "pickup_scheduled":
+            if current_robot.pickup_schedule is None:
+                continue  # Wait until the pickup schedule is set
+            if current_robot.iteration >= current_robot.pickup_schedule:
                 action = "pick_up"
                 #Release
                 current_robot.state = "searching"
@@ -491,6 +500,8 @@ def run_iteration(world, iteration):
                 current_robot.prevCommand = None
                 current_robot.ResponseID = None
                 current_robot.commandHeard = None
+                current_robot.pickup_schedule = None
+                current_robot.task_id = None
 
         log_robot_changes(current_robot, "decision")
         planned_actions[current_robot] = action
@@ -501,9 +512,9 @@ def run_iteration(world, iteration):
     for robot in world.robots.values():
         # Robot communication handling (sending messages)
         if robot.state == "needs_help":
-            robot.send("Need_help", goal_x=robot.x, goal_y=robot.y, task_id=robot.task_id)
+            robot.send("Need_help", goal_x=robot.x, goal_y=robot.y, task_id=robot.task_id, max_delay=delay)
         elif robot.state == "volunteer":
-            robot.send("Help_offer", goal_x=robot.goal_x, goal_y=robot.goal_y, task_id=robot.task_id)
+            robot.send("Help_offer", goal_x=robot.goal_x, goal_y=robot.goal_y, task_id=robot.task_id, max_delay=delay)
             robot.state = "wait_for_assignment"
         elif robot.state == "wait_for_helper":
             robot.proposal_task_id = robot.task_id
@@ -521,7 +532,7 @@ def run_iteration(world, iteration):
             robot.proposal_value = None
             robot.patience_counter = 10
 
-            robot.send("PREPARE", task_id=robot.proposal_task_id, ballot=robot.proposal_ballot)
+            robot.send("PREPARE", task_id=robot.proposal_task_id, ballot=robot.proposal_ballot, max_delay=delay)
             robot.state = "PREPARED"
         elif robot.state == "ACCEPT_REQUEST":
             robot.proposal_value = (
@@ -530,16 +541,20 @@ def run_iteration(world, iteration):
                 else (robot.helper_robot_id, robot.x, robot.y)
             )
 
-            robot.send("ACCEPT_REQUEST", task_id=robot.proposal_task_id, ballot=robot.proposal_ballot, Command=robot.proposal_value)
+            robot.send("ACCEPT_REQUEST", task_id=robot.proposal_task_id, ballot=robot.proposal_ballot, Command=robot.proposal_value, max_delay=delay)
 
             robot.patience_counter = 10
             robot.state = "ACCEPT_REQUESTED"
         elif robot.state == "COMMANDER":
-            robot.send("EXECUTE", task_id=robot.proposal_task_id, Command=robot.proposal_value, ballot=robot.proposal_ballot)
+            robot.send("EXECUTE", task_id=robot.proposal_task_id, Command=robot.proposal_value, ballot=robot.proposal_ballot, max_delay=delay)
             robot.command = robot.proposal_value
             robot.helper_robot_id = robot.proposal_value[0]
             robot.state = "wait_for_pickup"
             robot.state = "wait_for_pickup" # Wait for pickup
+
+        elif robot.state == "pickup_schedule":
+            robot.send("PICKUP", task_id=robot.task_id, pickup_schedule = robot.pickup_schedule, max_delay=delay)
+            robot.state = "pickup_scheduled"
 
         # Acceptor replies are independent of this robot's proposer state.
         for reply in robot.outbox:
@@ -554,6 +569,7 @@ def main():
     parser.add_argument("--iterations", type=int, default=ITERATIONS, help="Number of simulation iterations.")
     parser.add_argument("--robots", type=int, default=RANDOM_ROBOTS, help="Number of robots to simulate.")
     parser.add_argument("--targets", type=int, default=RANDOM_TARGETS, help="Number of targets to simulate.")
+    parser.add_argument("--delay", type=int, default=MAX_DELAY, help="Maximum iteration for message delays.")
     parser.add_argument("--seed", type=int, help="Random seed for repeatable movement and message delays.")
     args = parser.parse_args()
     if args.iterations < 1:
@@ -578,7 +594,7 @@ def main():
         while plt.fignum_exists(fig.number) and i < args.iterations:
             if not any(block.targets for row in world.blocks for block in row):
                 add_random_targets(world, args.targets)
-            run_iteration(world, i + 1)
+            run_iteration(world, i + 1, delay=args.delay)
             # Render after every robot has performed its action and sent messages.
             i += 1
             _show_frame(world, ax=ax)

@@ -55,6 +55,7 @@ class robot:
         self.proposal_value = None
         self.outbox = []
         self.cancelled_tasks = set()
+        self.pickup_schedule = None
 
     def forward(self, *, validated=False):
         """Move forward, optionally using approval from the iteration's rule phase."""
@@ -83,6 +84,7 @@ class robot:
     def new_task(self):
         self.task_counter += 1
         self.task_id = (self.id, self.task_counter)
+        self.pickup_schedule = None
         return self.task_id
     
     def consensus_for(self, task_id):
@@ -98,12 +100,12 @@ class robot:
     
         return self.consensus_by_task[task_id]
 
-    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5, ballot=None, accepted_ballot=None, accepted_value=None):
+    def send(self, message, goal_x=None, goal_y=None, task_id=None, delay=True, prevCommand=None, ResponseID=None, Command=None, max_delay=5, ballot=None, accepted_ballot=None, accepted_value=None, pickup_schedule=None):
 
         #initialize delay
         r = 0
 
-        payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "goal": None, "distance_to_goal": float("inf"), "helper_robot_id": None, "task_id": task_id, "Command": Command, "prevCommand": prevCommand, "ResponseID": ResponseID, "delay": r}
+        payload = {"from": self.id, "message": message, "message_value": self.message_value, "position": (self.x, self.y), "goal": None, "distance_to_goal": float("inf"), "helper_robot_id": None, "task_id": task_id, "Command": Command, "prevCommand": prevCommand, "ResponseID": ResponseID, "pickup_schedule": pickup_schedule, "delay": r}
         payload["ballot"] = ballot
         if ballot is not None:
             payload["message_value"] = ballot[0]
