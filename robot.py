@@ -175,7 +175,6 @@ class robot:
             if len(current_block.robots) > 0:
                 self.NumfoundRobotCurrent = len(current_block.robots)
                 for other_robot in current_block.robots:
-                    if other_robot.id != self.id:
                         # print(f"Robot {self.id}: Robot {other_robot.id} detected in same space as the robot.")
                         self.RobotIDsInCurrentBlock.append(other_robot.id)
                         continue

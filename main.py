@@ -302,6 +302,7 @@ def run_iteration(world, iteration):
                     if payload["distance_to_goal"] < robot.helper_robot_distance:
                         robot.helper_robot_id = payload["from"]
                         robot.helper_robot_distance = payload.get("distance_to_goal")
+                        robot.state = "wait_for_helper"
 
                 elif (payload["message"] == "Need_help" and payload["from"] < robot.id and robot.helper_robot_id is None):
                     old_task_id = robot.task_id
@@ -456,23 +457,16 @@ def run_iteration(world, iteration):
                 action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
 
         elif current_robot.state == "found_target":
-            if current_robot.NumfoundRobotCurrent == 2:
-                action = "pick_up"
-                current_robot.state = "searching"
-            elif current_robot.NumfoundRobotCurrent == 1:
+            if current_robot.id == current_robot.RobotIDsInCurrentBlock[0]:
                 current_robot.goal_x, current_robot.goal_y = current_robot.x, current_robot.y
                 current_robot.state = "needs_help"
                 current_robot.patience_counter = 10 # Reset patience counter when entering needs_help state
                 current_robot.new_task()
                 current_robot.helper_robot_id = None
                 current_robot.helper_robot_distance = float("inf")
-            elif current_robot.NumfoundRobotCurrent > 2:
-                if current_robot.id in current_robot.RobotIDsInCurrentBlock[:2]:
-                    action = "pick_up"
-                    current_robot.state = "searching"
-                else:
-                    action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
-                    current_robot.state = "searching"
+            else:
+                action = np.random.choice(["forward", "left", "right"], p=[0.6, 0.2, 0.2])
+                current_robot.state = "searching"
 
         elif current_robot.state == "move_to_goal":
             if current_robot.x == current_robot.goal_x and current_robot.y == current_robot.goal_y:
