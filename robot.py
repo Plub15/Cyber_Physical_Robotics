@@ -55,6 +55,7 @@ class robot:
         self.proposal_value = None
         self.outbox = []
         self.cancelled_tasks = set()
+        self.decided_tasks = set()
 
     def forward(self, *, validated=False):
         """Move forward, optionally using approval from the iteration's rule phase."""
